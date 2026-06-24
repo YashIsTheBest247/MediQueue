@@ -6,9 +6,25 @@ import GoogleButton from "../components/GoogleButton.jsx";
 import BrandMark from "../components/BrandMark.jsx";
 import { useT } from "../i18n.jsx";
 
+function useDesktop() {
+  const [desktop, setDesktop] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(min-width: 768px)").matches
+      : true
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const on = () => setDesktop(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return desktop;
+}
+
 export default function Auth() {
   const { login, signup, google } = useAuth();
   const { t } = useT();
+  const desktop = useDesktop();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
@@ -95,15 +111,17 @@ export default function Auth() {
 
   return (
     <div className="page auth-page">
-      <video
-        className="auth-bg-video"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        src="/intro.mp4"
-      />
+      {desktop && (
+        <video
+          className="auth-bg-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          src="/intro.mp4"
+        />
+      )}
       <div className="auth-bg-overlay" />
 
       <div className="auth-card card">

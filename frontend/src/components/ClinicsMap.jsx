@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -39,27 +39,41 @@ function FlyTo({ target }) {
   return null;
 }
 
+const DEFAULT_CENTER = [20.5937, 78.9629];
+
 export default function ClinicsMap({ clinics, onView, onRegister, t }) {
   const [pos, setPos] = useState(null);
   const [geoErr, setGeoErr] = useState("");
+  const [locating, setLocating] = useState(false);
   const [pois, setPois] = useState([]);
   const [search, setSearch] = useState("");
   const [focus, setFocus] = useState(null);
 
-  useEffect(() => {
+  const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setGeoErr(t("Geolocation is not supported by your browser."));
+      setGeoErr(t("Geolocation isn't supported — showing registered clinics."));
       return;
     }
+    setGeoErr("");
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (p) => setPos([p.coords.latitude, p.coords.longitude]),
-      () =>
+      (p) => {
+        setPos([p.coords.latitude, p.coords.longitude]);
+        setLocating(false);
+      },
+      () => {
         setGeoErr(
-          t("Location access denied. Allow it to see clinics near you.")
-        ),
+          t("Location is off — showing registered clinics. Enable it to see nearby ones.")
+        );
+        setLocating(false);
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }, [t]);
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
 
   useEffect(() => {
     if (!pos) return;
@@ -104,6 +118,17 @@ export default function ClinicsMap({ clinics, onView, onRegister, t }) {
     [clinics]
   );
 
+  const fallbackCenter = useMemo(() => {
+    if (registered.length) {
+      const la = registered.reduce((s, c) => s + c.lat, 0) / registered.length;
+      const lo = registered.reduce((s, c) => s + c.lng, 0) / registered.length;
+      return [la, lo];
+    }
+    return DEFAULT_CENTER;
+  }, [registered]);
+
+  const center = pos || fallbackCenter;
+
   const results = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return [];
@@ -126,11 +151,24 @@ export default function ClinicsMap({ clinics, onView, onRegister, t }) {
       .slice(0, 8);
   }, [search, registered, pois, t]);
 
-  if (geoErr && !pos) return <div className="map-msg">{geoErr}</div>;
-  if (!pos) return <div className="map-msg">{t("Locating you…")}</div>;
-
   return (
     <div className="map-wrap">
+      {!pos && (
+        <div className="map-geo-banner">
+          <span>
+            {geoErr ||
+              (locating ? t("Locating you…") : t("Showing registered clinics."))}
+          </span>
+          <button
+            type="button"
+            className="map-geo-btn"
+            onClick={requestLocation}
+            disabled={locating}
+          >
+            {locating ? t("Locating…") : t("Enable location")}
+          </button>
+        </div>
+      )}
       <div className="map-search">
         <input
           value={search}
@@ -155,7 +193,7 @@ export default function ClinicsMap({ clinics, onView, onRegister, t }) {
         )}
       </div>
 
-      <MapContainer center={pos} zoom={13} className="leaflet-map" scrollWheelZoom>
+      <MapContainer center={center} zoom={pos ? 13 : 11} className="leaflet-map" scrollWheelZoom>
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -163,9 +201,11 @@ export default function ClinicsMap({ clinics, onView, onRegister, t }) {
         <Recenter center={pos} />
         <FlyTo target={focus} />
 
-        <Marker position={pos} icon={userIcon}>
-          <Popup>{t("You are here")}</Popup>
-        </Marker>
+        {pos && (
+          <Marker position={pos} icon={userIcon}>
+            <Popup>{t("You are here")}</Popup>
+          </Marker>
+        )}
 
         {registered.map((c) => (
           <Marker key={"r" + c.id} position={[c.lat, c.lng]} icon={CLINIC_ICON}>

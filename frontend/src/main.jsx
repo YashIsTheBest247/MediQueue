@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import {
   BrowserRouter,
@@ -12,12 +12,21 @@ import { AuthProvider, useAuth } from "./auth.jsx";
 import { LanguageProvider, useT } from "./i18n.jsx";
 import Landing from "./pages/Landing.jsx";
 import Auth from "./pages/Auth.jsx";
-import ClinicDashboard from "./pages/ClinicDashboard.jsx";
-import PatientView from "./pages/PatientView.jsx";
-import DisplayBoard from "./pages/DisplayBoard.jsx";
-import ExploreClinics from "./pages/ExploreClinics.jsx";
-import QuickJoin from "./pages/QuickJoin.jsx";
 import "./styles.css";
+
+const ClinicDashboard = lazy(() => import("./pages/ClinicDashboard.jsx"));
+const PatientView = lazy(() => import("./pages/PatientView.jsx"));
+const DisplayBoard = lazy(() => import("./pages/DisplayBoard.jsx"));
+const ExploreClinics = lazy(() => import("./pages/ExploreClinics.jsx"));
+const QuickJoin = lazy(() => import("./pages/QuickJoin.jsx"));
+
+function RouteLoading() {
+  return (
+    <div className="route-loading">
+      <span className="route-spinner" />
+    </div>
+  );
+}
 
 function Protected({ role, children }) {
   const { account } = useAuth();
@@ -57,30 +66,32 @@ function AnimatedRoutes() {
         exit="exit"
         transition={pageTransition}
       >
-        <Routes location={location}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route
-            path="/clinic"
-            element={
-              <Protected role="clinic">
-                <ClinicDashboard />
-              </Protected>
-            }
-          />
-          <Route
-            path="/patient"
-            element={
-              <Protected role="patient">
-                <PatientView />
-              </Protected>
-            }
-          />
-          <Route path="/display/:clinicId" element={<DisplayBoard />} />
-        <Route path="/explore" element={<ExploreClinics />} />
-        <Route path="/j/:clinicId" element={<QuickJoin />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes location={location}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/clinic"
+              element={
+                <Protected role="clinic">
+                  <ClinicDashboard />
+                </Protected>
+              }
+            />
+            <Route
+              path="/patient"
+              element={
+                <Protected role="patient">
+                  <PatientView />
+                </Protected>
+              }
+            />
+            <Route path="/display/:clinicId" element={<DisplayBoard />} />
+            <Route path="/explore" element={<ExploreClinics />} />
+            <Route path="/j/:clinicId" element={<QuickJoin />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </motion.div>
     </AnimatePresence>
   );

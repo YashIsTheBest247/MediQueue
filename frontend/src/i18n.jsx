@@ -154,6 +154,13 @@ const DICT = {
     "Continue with Google": "Google से जारी रखें",
     "Google sign-in is blocked. Enable third-party sign-in / pop-ups for this site, then try again.":
       "Google साइन-इन अवरुद्ध है। इस साइट के लिए थर्ड-पार्टी साइन-इन / पॉप-अप चालू करें, फिर पुनः प्रयास करें।",
+    "Enable location": "स्थान चालू करें",
+    "Locating…": "ढूँढ रहे हैं…",
+    "Showing registered clinics.": "पंजीकृत क्लीनिक दिखा रहे हैं।",
+    "Location is off — showing registered clinics. Enable it to see nearby ones.":
+      "स्थान बंद है — पंजीकृत क्लीनिक दिखा रहे हैं। पास वाले देखने के लिए इसे चालू करें।",
+    "Geolocation isn't supported — showing registered clinics.":
+      "जियोलोकेशन समर्थित नहीं है — पंजीकृत क्लीनिक दिखा रहे हैं।",
     Skip: "छोड़ें",
     Recall: "वापस बुलाएँ",
     Call: "बुलाएँ",
@@ -334,6 +341,13 @@ const DICT = {
     "Continue with Google": "Google மூலம் தொடரவும்",
     "Google sign-in is blocked. Enable third-party sign-in / pop-ups for this site, then try again.":
       "Google உள்நுழைவு தடுக்கப்பட்டுள்ளது. இந்தத் தளத்திற்கு மூன்றாம் தரப்பு உள்நுழைவு / பாப்-அப்களை இயக்கி, மீண்டும் முயற்சிக்கவும்.",
+    "Enable location": "இருப்பிடத்தை இயக்கு",
+    "Locating…": "கண்டறிகிறது…",
+    "Showing registered clinics.": "பதிவு செய்த கிளினிக்குகள் காட்டப்படுகின்றன.",
+    "Location is off — showing registered clinics. Enable it to see nearby ones.":
+      "இருப்பிடம் அணைக்கப்பட்டுள்ளது — பதிவு செய்த கிளினிக்குகள் காட்டப்படுகின்றன. அருகிலுள்ளவற்றைக் காண இயக்கவும்.",
+    "Geolocation isn't supported — showing registered clinics.":
+      "ஜியோலொகேஷன் ஆதரிக்கப்படவில்லை — பதிவு செய்த கிளினிக்குகள் காட்டப்படுகின்றன.",
     Skip: "தவிர்",
     Recall: "மீண்டும் அழை",
     Call: "அழை",
