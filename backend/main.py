@@ -762,16 +762,21 @@ async def clinic_add_patient(body: AddPatientBody, account=Depends(require_clini
     ref = body.patient_ref.strip()
     if ref:
         conn = get_conn()
-        if ref.isdigit():
-            row = conn.execute(
-                "SELECT id, name FROM accounts WHERE id=? AND role='patient'",
-                (int(ref),),
-            ).fetchone()
-        else:
+        if "@" in ref:
             row = conn.execute(
                 "SELECT id, name FROM accounts WHERE email=? AND role='patient'",
                 (ref.lower(),),
             ).fetchone()
+        else:
+            digits = re.sub(r"\D", "", ref)
+            row = (
+                conn.execute(
+                    "SELECT id, name FROM accounts WHERE id=? AND role='patient'",
+                    (int(digits),),
+                ).fetchone()
+                if digits
+                else None
+            )
         conn.close()
         if row:
             patient_id = row["id"]

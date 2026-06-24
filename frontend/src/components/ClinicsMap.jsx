@@ -41,11 +41,55 @@ function FlyTo({ target }) {
 
 const DEFAULT_CENTER = [20.5937, 78.9629];
 
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+];
+
+async function fetchPois(lat, lng, signal, label) {
+  const q =
+    `[out:json][timeout:25];(` +
+    `node["amenity"~"hospital|clinic|doctors"](around:6000,${lat},${lng});` +
+    `way["amenity"~"hospital|clinic|doctors"](around:6000,${lat},${lng});` +
+    `);out center 60;`;
+  for (const url of OVERPASS_ENDPOINTS) {
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "data=" + encodeURIComponent(q),
+        signal,
+      });
+      if (!r.ok) continue;
+      const d = await r.json();
+      return (d.elements || [])
+        .map((e) => {
+          const la = e.lat ?? e.center?.lat;
+          const lo = e.lon ?? e.center?.lon;
+          if (la == null || lo == null) return null;
+          return {
+            id: e.id,
+            lat: la,
+            lng: lo,
+            name: e.tags?.name || label,
+            kind: e.tags?.amenity || "facility",
+          };
+        })
+        .filter(Boolean);
+    } catch (err) {
+      if (signal.aborted) throw err;
+    }
+  }
+  throw new Error("overpass unavailable");
+}
+
 export default function ClinicsMap({ clinics, onView, onRegister, t }) {
   const [pos, setPos] = useState(null);
   const [geoErr, setGeoErr] = useState("");
   const [locating, setLocating] = useState(false);
   const [pois, setPois] = useState([]);
+  const [poiStatus, setPoiStatus] = useState("");
   const [search, setSearch] = useState("");
   const [focus, setFocus] = useState(null);
 
@@ -75,41 +119,6 @@ export default function ClinicsMap({ clinics, onView, onRegister, t }) {
     requestLocation();
   }, [requestLocation]);
 
-  useEffect(() => {
-    if (!pos) return;
-    const [lat, lng] = pos;
-    const q = `[out:json][timeout:20];(node["amenity"~"hospital|clinic|doctors"](around:6000,${lat},${lng});way["amenity"~"hospital|clinic|doctors"](around:6000,${lat},${lng}););out center 60;`;
-    let active = true;
-    fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "data=" + encodeURIComponent(q),
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        if (!active) return;
-        const items = (d.elements || [])
-          .map((e) => {
-            const la = e.lat ?? e.center?.lat;
-            const lo = e.lon ?? e.center?.lon;
-            if (la == null || lo == null) return null;
-            return {
-              id: e.id,
-              lat: la,
-              lng: lo,
-              name: e.tags?.name || t("Unnamed facility"),
-              kind: e.tags?.amenity || "facility",
-            };
-          })
-          .filter(Boolean);
-        setPois(items);
-      })
-      .catch(() => active && setPois([]));
-    return () => {
-      active = false;
-    };
-  }, [pos, t]);
-
   const registered = useMemo(
     () =>
       (clinics || []).filter(
@@ -126,6 +135,32 @@ export default function ClinicsMap({ clinics, onView, onRegister, t }) {
     }
     return DEFAULT_CENTER;
   }, [registered]);
+
+  const hasRegistered = registered.length > 0;
+  const plat = pos ? pos[0] : hasRegistered ? fallbackCenter[0] : null;
+  const plng = pos ? pos[1] : hasRegistered ? fallbackCenter[1] : null;
+
+  useEffect(() => {
+    if (plat == null || plng == null) {
+      setPois([]);
+      setPoiStatus("");
+      return;
+    }
+    const ctrl = new AbortController();
+    setPoiStatus("loading");
+    fetchPois(plat, plng, ctrl.signal, t("Unnamed facility"))
+      .then((items) => {
+        setPois(items);
+        setPoiStatus(items.length ? "" : "empty");
+      })
+      .catch(() => {
+        if (!ctrl.signal.aborted) {
+          setPois([]);
+          setPoiStatus("error");
+        }
+      });
+    return () => ctrl.abort();
+  }, [plat, plng, t]);
 
   const center = pos || fallbackCenter;
 
@@ -153,6 +188,13 @@ export default function ClinicsMap({ clinics, onView, onRegister, t }) {
 
   return (
     <div className="map-wrap">
+      {(poiStatus === "loading" || poiStatus === "error") && (
+        <div className={"map-poi-status " + poiStatus}>
+          {poiStatus === "loading"
+            ? t("Loading nearby places…")
+            : t("Couldn't load nearby places — registered clinics still shown.")}
+        </div>
+      )}
       {!pos && (
         <div className="map-geo-banner">
           <span>

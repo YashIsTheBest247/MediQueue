@@ -229,7 +229,7 @@ export default function ClinicDashboard() {
                 className="input"
                 value={patientRef}
                 onChange={(e) => setPatientRef(e.target.value)}
-                placeholder={t("Patient app code / email (to link their app)")}
+                placeholder={t("Patient code (e.g. MQ-0003) or email — links their app")}
                 style={{ marginTop: 8 }}
               />
               <input

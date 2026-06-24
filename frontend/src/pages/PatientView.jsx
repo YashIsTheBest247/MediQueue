@@ -21,7 +21,19 @@ export default function PatientView() {
   const navigate = useNavigate();
   const [queues, setQueues] = useState([]);
   const [clinics, setClinics] = useState([]);
+  const [copied, setCopied] = useState(false);
   const stageRef = useRef(null);
+
+  const patientCode = `MQ-${String(account.id).padStart(4, "0")}`;
+  function copyCode() {
+    try {
+      navigator.clipboard.writeText(patientCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      void 0;
+    }
+  }
 
   const active =
     queues.find((q) => q.status === "waiting" || q.status === "serving") || null;
@@ -176,14 +188,17 @@ export default function PatientView() {
             </p>
 
             <div className="patient-code card">
-              <div>
-                <div className="section-title">{t("Show this at reception")}</div>
-                <div className="pc-code">#{account.id}</div>
+              <div className="pc-left">
+                <div className="section-title">{t("Your patient code")}</div>
+                <div className="pc-code">{patientCode}</div>
                 <div className="pc-email">{account.email}</div>
+                <button className="pc-copy" onClick={copyCode}>
+                  {copied ? t("Copied ✓") : t("Copy code")}
+                </button>
               </div>
               <div className="pc-note">
                 {t(
-                  "Reception enters your code or email to link your token to this app."
+                  "This is your profile ID — not a queue number. Show this code (or your email) to reception and they'll add you to that clinic's queue. Your token appears here once they do."
                 )}
               </div>
             </div>

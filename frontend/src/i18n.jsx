@@ -156,6 +156,12 @@ const DICT = {
       "Google साइन-इन अवरुद्ध है। इस साइट के लिए थर्ड-पार्टी साइन-इन / पॉप-अप चालू करें, फिर पुनः प्रयास करें।",
     "Enable location": "स्थान चालू करें",
     "Locating…": "ढूँढ रहे हैं…",
+    "Your patient code": "आपका मरीज़ कोड",
+    "Copy code": "कोड कॉपी करें",
+    "Copied ✓": "कॉपी हो गया ✓",
+    "Loading nearby places…": "आस-पास की जगहें लोड हो रही हैं…",
+    "Couldn't load nearby places — registered clinics still shown.":
+      "आस-पास की जगहें लोड नहीं हो सकीं — पंजीकृत क्लीनिक फिर भी दिख रहे हैं।",
     "Showing registered clinics.": "पंजीकृत क्लीनिक दिखा रहे हैं।",
     "Location is off — showing registered clinics. Enable it to see nearby ones.":
       "स्थान बंद है — पंजीकृत क्लीनिक दिखा रहे हैं। पास वाले देखने के लिए इसे चालू करें।",
@@ -343,6 +349,12 @@ const DICT = {
       "Google உள்நுழைவு தடுக்கப்பட்டுள்ளது. இந்தத் தளத்திற்கு மூன்றாம் தரப்பு உள்நுழைவு / பாப்-அப்களை இயக்கி, மீண்டும் முயற்சிக்கவும்.",
     "Enable location": "இருப்பிடத்தை இயக்கு",
     "Locating…": "கண்டறிகிறது…",
+    "Your patient code": "உங்கள் நோயாளர் குறியீடு",
+    "Copy code": "குறியீட்டை நகலெடு",
+    "Copied ✓": "நகலெடுக்கப்பட்டது ✓",
+    "Loading nearby places…": "அருகிலுள்ள இடங்கள் ஏற்றப்படுகின்றன…",
+    "Couldn't load nearby places — registered clinics still shown.":
+      "அருகிலுள்ள இடங்களை ஏற்ற முடியவில்லை — பதிவு செய்த கிளினிக்குகள் இன்னும் காட்டப்படுகின்றன.",
     "Showing registered clinics.": "பதிவு செய்த கிளினிக்குகள் காட்டப்படுகின்றன.",
     "Location is off — showing registered clinics. Enable it to see nearby ones.":
       "இருப்பிடம் அணைக்கப்பட்டுள்ளது — பதிவு செய்த கிளினிக்குகள் காட்டப்படுகின்றன. அருகிலுள்ளவற்றைக் காண இயக்கவும்.",

@@ -3267,6 +3267,30 @@ button.pill.ghost:active {
   border-radius: 20px;
   font-size: 15px;
 }
+.map-poi-status {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  max-width: 92%;
+  text-align: center;
+}
+.map-poi-status.error {
+  border-color: #f0c9b0;
+  color: #b4541f;
+}
+[data-theme="dark"] .map-poi-status.error {
+  color: #f0a868;
+}
 .map-geo-banner {
   position: absolute;
   left: 14px;
@@ -3406,6 +3430,25 @@ button.pill.ghost:active {
   color: var(--muted);
   font-size: 14px;
   margin-top: 2px;
+}
+.pc-copy {
+  margin-top: 10px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--teal);
+  background: #eef8f9;
+  color: var(--teal-dark);
+  font-weight: 700;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+.pc-copy:active {
+  transform: scale(0.97);
+}
+[data-theme="dark"] .pc-copy {
+  background: #14262a;
+  color: #82d6df;
+  border-color: #1e3a40;
 }
 .pc-note {
   max-width: 260px;
