@@ -15,6 +15,7 @@ import ClinicDashboard from "./pages/ClinicDashboard.jsx";
 import PatientView from "./pages/PatientView.jsx";
 import DisplayBoard from "./pages/DisplayBoard.jsx";
 import ExploreClinics from "./pages/ExploreClinics.jsx";
+import QuickJoin from "./pages/QuickJoin.jsx";
 import "./styles.css";
 
 function Protected({ role, children }) {
@@ -67,6 +68,7 @@ function AnimatedRoutes() {
           />
           <Route path="/display/:clinicId" element={<DisplayBoard />} />
         <Route path="/explore" element={<ExploreClinics />} />
+        <Route path="/j/:clinicId" element={<QuickJoin />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </motion.div>

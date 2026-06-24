@@ -55,13 +55,18 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
         conn.close()
         return None
     rows = conn.execute(
-        "SELECT * FROM tokens WHERE clinic_id=? AND status IN ('waiting','serving') ORDER BY number",
+        "SELECT * FROM tokens WHERE clinic_id=? AND status IN ('waiting','serving') "
+        "ORDER BY priority DESC, number ASC",
         (clinic_id,),
     ).fetchall()
     served = conn.execute(
         "SELECT COUNT(*) AS c FROM tokens WHERE clinic_id=? AND status='done'",
         (clinic_id,),
     ).fetchone()["c"]
+    skipped_rows = conn.execute(
+        "SELECT number, name FROM tokens WHERE clinic_id=? AND status='skipped' ORDER BY number",
+        (clinic_id,),
+    ).fetchall()
     conn.close()
 
     avg = clinic["avg_time"]
@@ -72,6 +77,8 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
                 "token": r["number"],
                 "name": r["name"],
                 "patient_id": r["patient_id"],
+                "reason": r["reason"],
+                "priority": r["priority"],
             }
     serving_block = 1 if serving else 0
     waiting = []
@@ -84,6 +91,8 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
                     "token": r["number"],
                     "name": r["name"],
                     "patient_id": r["patient_id"],
+                    "reason": r["reason"],
+                    "priority": r["priority"],
                     "position": idx,
                     "estimated_wait": (idx - 1 + serving_block) * avg,
                 }
@@ -93,8 +102,10 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
         "clinic_id": clinic_id,
         "clinic_name": clinic["name"],
         "current_token": clinic["current_token"],
+        "paused": bool(clinic["paused"]),
         "serving": serving,
         "waiting": waiting,
+        "skipped": [{"token": s["number"], "name": s["name"]} for s in skipped_rows],
         "tokens_ahead": len(waiting),
         "avg_consultation_time": avg,
         "stats": {
@@ -106,7 +117,13 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
     }
 
 
-def add_token(clinic_id: int, name: str, patient_id: Optional[int] = None) -> Optional[int]:
+def add_token(
+    clinic_id: int,
+    name: str,
+    patient_id: Optional[int] = None,
+    priority: int = 0,
+    reason: Optional[str] = None,
+) -> Optional[int]:
     conn = get_conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
@@ -118,9 +135,9 @@ def add_token(clinic_id: int, name: str, patient_id: Optional[int] = None) -> Op
             return None
         number = clinic["next_token"]
         conn.execute(
-            "INSERT INTO tokens (clinic_id, patient_id, name, number, status, created_at) "
-            "VALUES (?,?,?,?, 'waiting', ?)",
-            (clinic_id, patient_id, name, number, now_iso()),
+            "INSERT INTO tokens (clinic_id, patient_id, name, number, status, priority, reason, created_at) "
+            "VALUES (?,?,?,?, 'waiting', ?, ?, ?)",
+            (clinic_id, patient_id, name, number, priority, reason, now_iso()),
         )
         conn.execute(
             "UPDATE accounts SET next_token=? WHERE id=?", (number + 1, clinic_id)
@@ -134,30 +151,31 @@ def add_token(clinic_id: int, name: str, patient_id: Optional[int] = None) -> Op
         conn.close()
 
 
+def _advance(conn, clinic_id: int, current_status: str) -> Optional[int]:
+    conn.execute(
+        f"UPDATE tokens SET status='{current_status}' WHERE clinic_id=? AND status='serving'",
+        (clinic_id,),
+    )
+    nxt = conn.execute(
+        "SELECT * FROM tokens WHERE clinic_id=? AND status='waiting' "
+        "ORDER BY priority DESC, number ASC LIMIT 1",
+        (clinic_id,),
+    ).fetchone()
+    if nxt:
+        conn.execute("UPDATE tokens SET status='serving' WHERE id=?", (nxt["id"],))
+        conn.execute(
+            "UPDATE accounts SET current_token=? WHERE id=?", (nxt["number"], clinic_id)
+        )
+        return nxt["number"]
+    conn.execute("UPDATE accounts SET current_token=NULL WHERE id=?", (clinic_id,))
+    return None
+
+
 def do_call_next(clinic_id: int) -> Optional[int]:
     conn = get_conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
-        conn.execute(
-            "UPDATE tokens SET status='done' WHERE clinic_id=? AND status='serving'",
-            (clinic_id,),
-        )
-        nxt = conn.execute(
-            "SELECT * FROM tokens WHERE clinic_id=? AND status='waiting' ORDER BY number LIMIT 1",
-            (clinic_id,),
-        ).fetchone()
-        if nxt:
-            conn.execute("UPDATE tokens SET status='serving' WHERE id=?", (nxt["id"],))
-            conn.execute(
-                "UPDATE accounts SET current_token=? WHERE id=?",
-                (nxt["number"], clinic_id),
-            )
-            called = nxt["number"]
-        else:
-            conn.execute(
-                "UPDATE accounts SET current_token=NULL WHERE id=?", (clinic_id,)
-            )
-            called = None
+        called = _advance(conn, clinic_id, "done")
         conn.execute("COMMIT")
         return called
     except Exception:
@@ -165,6 +183,90 @@ def do_call_next(clinic_id: int) -> Optional[int]:
         raise
     finally:
         conn.close()
+
+
+def do_skip(clinic_id: int) -> Optional[int]:
+    conn = get_conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        called = _advance(conn, clinic_id, "skipped")
+        conn.execute("COMMIT")
+        return called
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
+
+
+def do_recall(clinic_id: int) -> int:
+    conn = get_conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        cur = conn.execute(
+            "UPDATE tokens SET status='waiting', priority=1 "
+            "WHERE clinic_id=? AND status='skipped'",
+            (clinic_id,),
+        )
+        count = cur.rowcount
+        conn.execute("COMMIT")
+        return count
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
+
+
+def do_call_specific(clinic_id: int, number: int) -> Optional[int]:
+    conn = get_conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        target = conn.execute(
+            "SELECT * FROM tokens WHERE clinic_id=? AND number=? AND status='waiting'",
+            (clinic_id, number),
+        ).fetchone()
+        if not target:
+            conn.execute("ROLLBACK")
+            return None
+        conn.execute(
+            "UPDATE tokens SET status='done' WHERE clinic_id=? AND status='serving'",
+            (clinic_id,),
+        )
+        conn.execute("UPDATE tokens SET status='serving' WHERE id=?", (target["id"],))
+        conn.execute(
+            "UPDATE accounts SET current_token=? WHERE id=?", (number, clinic_id)
+        )
+        conn.execute("COMMIT")
+        return number
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
+
+
+def do_remove(clinic_id: int, number: int) -> bool:
+    conn = get_conn()
+    cur = conn.execute(
+        "UPDATE tokens SET status='cancelled' WHERE clinic_id=? AND number=? "
+        "AND status IN ('waiting','skipped')",
+        (clinic_id, number),
+    )
+    ok = cur.rowcount > 0
+    conn.close()
+    return ok
+
+
+def do_prioritize(clinic_id: int, number: int) -> bool:
+    conn = get_conn()
+    cur = conn.execute(
+        "UPDATE tokens SET priority=1 WHERE clinic_id=? AND number=? AND status='waiting'",
+        (clinic_id, number),
+    )
+    ok = cur.rowcount > 0
+    conn.close()
+    return ok
 
 
 class ConnectionManager:
@@ -245,10 +347,20 @@ class GoogleBody(BaseModel):
 
 class AddPatientBody(BaseModel):
     name: str = Field(default="", max_length=80)
+    priority: int = Field(default=0, ge=0, le=1)
+    reason: str = Field(default="", max_length=160)
 
 
 class AvgTimeBody(BaseModel):
     minutes: int = Field(ge=1, le=180)
+
+
+class PauseBody(BaseModel):
+    paused: bool
+
+
+class JoinBody(BaseModel):
+    reason: str = Field(default="", max_length=160)
 
 
 @app.get("/")
@@ -367,16 +479,76 @@ def clinic_state(account=Depends(require_clinic)):
 @app.post("/api/clinic/patients")
 async def clinic_add_patient(body: AddPatientBody, account=Depends(require_clinic)):
     name = body.name.strip() or f"Patient {account['next_token']}"
-    number = add_token(account["id"], name)
+    number = add_token(
+        account["id"],
+        name,
+        priority=body.priority,
+        reason=body.reason.strip() or None,
+    )
     await broadcast_clinic(account["id"])
     return {"added": {"token": number, "name": name}, "state": clinic_snapshot(account["id"])}
 
 
 @app.post("/api/clinic/call-next")
 async def clinic_call_next(account=Depends(require_clinic)):
+    if account["paused"]:
+        raise HTTPException(status_code=409, detail="Queue is paused")
     called = do_call_next(account["id"])
     await broadcast_clinic(account["id"])
     return {"called": called, "state": clinic_snapshot(account["id"])}
+
+
+@app.post("/api/clinic/skip")
+async def clinic_skip(account=Depends(require_clinic)):
+    called = do_skip(account["id"])
+    await broadcast_clinic(account["id"])
+    return {"called": called, "state": clinic_snapshot(account["id"])}
+
+
+@app.post("/api/clinic/recall")
+async def clinic_recall(account=Depends(require_clinic)):
+    count = do_recall(account["id"])
+    await broadcast_clinic(account["id"])
+    return {"recalled": count, "state": clinic_snapshot(account["id"])}
+
+
+@app.post("/api/clinic/call/{number}")
+async def clinic_call_specific(number: int, account=Depends(require_clinic)):
+    if account["paused"]:
+        raise HTTPException(status_code=409, detail="Queue is paused")
+    called = do_call_specific(account["id"], number)
+    if called is None:
+        raise HTTPException(status_code=404, detail="Token not found in the waiting list")
+    await broadcast_clinic(account["id"])
+    return {"called": called, "state": clinic_snapshot(account["id"])}
+
+
+@app.post("/api/clinic/remove/{number}")
+async def clinic_remove(number: int, account=Depends(require_clinic)):
+    if not do_remove(account["id"], number):
+        raise HTTPException(status_code=404, detail="Token not found")
+    await broadcast_clinic(account["id"])
+    return {"removed": number, "state": clinic_snapshot(account["id"])}
+
+
+@app.post("/api/clinic/prioritize/{number}")
+async def clinic_prioritize(number: int, account=Depends(require_clinic)):
+    if not do_prioritize(account["id"], number):
+        raise HTTPException(status_code=404, detail="Token not found in the waiting list")
+    await broadcast_clinic(account["id"])
+    return {"prioritized": number, "state": clinic_snapshot(account["id"])}
+
+
+@app.put("/api/clinic/pause")
+async def clinic_pause(body: PauseBody, account=Depends(require_clinic)):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE accounts SET paused=? WHERE id=?",
+        (1 if body.paused else 0, account["id"]),
+    )
+    conn.close()
+    await broadcast_clinic(account["id"])
+    return {"paused": body.paused, "state": clinic_snapshot(account["id"])}
 
 
 @app.put("/api/clinic/avg-time")
@@ -432,7 +604,7 @@ def list_clinics():
 def clinics_overview():
     conn = get_conn()
     clinics = conn.execute(
-        "SELECT id, name, avg_time FROM accounts WHERE role='clinic' ORDER BY name"
+        "SELECT id, name, avg_time, paused FROM accounts WHERE role='clinic' ORDER BY name"
     ).fetchall()
     result = []
     for c in clinics:
@@ -445,6 +617,7 @@ def clinics_overview():
             (c["id"],),
         ).fetchone()
         serving_flag = 1 if serving else 0
+        paused = bool(c["paused"])
         result.append(
             {
                 "id": c["id"],
@@ -453,7 +626,8 @@ def clinics_overview():
                 "waiting": waiting,
                 "avg_consultation_time": c["avg_time"],
                 "estimated_wait": (waiting + serving_flag) * c["avg_time"],
-                "is_open": serving_flag == 1 or waiting > 0,
+                "paused": paused,
+                "is_open": not paused and (serving_flag == 1 or waiting > 0),
             }
         )
     conn.close()
@@ -505,7 +679,9 @@ def patient_status(clinic_id: int, patient_id: int) -> dict:
 
 
 @app.post("/api/clinics/{clinic_id}/join")
-async def patient_join(clinic_id: int, account=Depends(require_patient)):
+async def patient_join(
+    clinic_id: int, body: JoinBody = JoinBody(), account=Depends(require_patient)
+):
     conn = get_conn()
     created = False
     try:
@@ -524,9 +700,16 @@ async def patient_join(clinic_id: int, account=Depends(require_patient)):
         if not existing:
             number = clinic["next_token"]
             conn.execute(
-                "INSERT INTO tokens (clinic_id, patient_id, name, number, status, created_at) "
-                "VALUES (?,?,?,?, 'waiting', ?)",
-                (clinic_id, account["id"], account["name"], number, now_iso()),
+                "INSERT INTO tokens (clinic_id, patient_id, name, number, status, reason, created_at) "
+                "VALUES (?,?,?,?, 'waiting', ?, ?)",
+                (
+                    clinic_id,
+                    account["id"],
+                    account["name"],
+                    number,
+                    body.reason.strip() or None,
+                    now_iso(),
+                ),
             )
             conn.execute(
                 "UPDATE accounts SET next_token=? WHERE id=?", (number + 1, clinic_id)
@@ -562,6 +745,30 @@ async def patient_leave(clinic_id: int, account=Depends(require_patient)):
 @app.get("/api/clinics/{clinic_id}/me")
 def patient_me(clinic_id: int, account=Depends(require_patient)):
     return patient_status(clinic_id, account["id"])
+
+
+@app.get("/api/patient/history")
+def patient_history(account=Depends(require_patient)):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT t.number, t.status, t.created_at, a.name AS clinic_name "
+        "FROM tokens t JOIN accounts a ON a.id = t.clinic_id "
+        "WHERE t.patient_id=? AND t.status IN ('done','skipped','cancelled') "
+        "ORDER BY t.id DESC LIMIT 30",
+        (account["id"],),
+    ).fetchall()
+    conn.close()
+    return {
+        "history": [
+            {
+                "token": r["number"],
+                "status": r["status"],
+                "clinic_name": r["clinic_name"],
+                "at": r["created_at"],
+            }
+            for r in rows
+        ]
+    }
 
 
 @app.websocket("/ws")

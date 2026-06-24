@@ -1,9 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth.jsx";
 import { useQueueSocket } from "../useQueue.js";
 import { TopBar } from "../components/Chrome.jsx";
+import { chime, notify, requestNotifyPermission } from "../notify.js";
 
 const STORE = "mq_patient_clinic";
+
+function clockTime(mins) {
+  const d = new Date(Date.now() + mins * 60000);
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const ap = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${String(m).padStart(2, "0")} ${ap}`;
+}
 
 export default function PatientView() {
   const { account, authedFetch, logout } = useAuth();
@@ -15,7 +25,9 @@ export default function PatientView() {
     }
   });
   const [clinics, setClinics] = useState([]);
+  const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const stageRef = useRef(null);
 
   const { state, connected } = useQueueSocket(joined?.id);
 
@@ -45,11 +57,14 @@ export default function PatientView() {
 
   async function join(clinic) {
     setBusy(true);
+    requestNotifyPermission();
     try {
       const r = await authedFetch(`/api/clinics/${clinic.id}/join`, {
         method: "POST",
+        body: JSON.stringify({ reason: reason.trim() }),
       });
       const d = await r.json();
+      stageRef.current = null;
       persist({ id: clinic.id, name: clinic.name, token: d.my_token });
     } finally {
       setBusy(false);
@@ -57,9 +72,51 @@ export default function PatientView() {
   }
 
   async function leave() {
-    if (joined) await authedFetch(`/api/clinics/${joined.id}/leave`, { method: "POST" });
+    if (joined)
+      await authedFetch(`/api/clinics/${joined.id}/leave`, { method: "POST" });
     persist(null);
   }
+
+  let me = null;
+  if (state) {
+    if (state.serving && state.serving.patient_id === account.id) {
+      me = { token: state.serving.token, ahead: 0, est: 0, served: true };
+    } else {
+      const w = state.waiting.find((x) => x.patient_id === account.id);
+      if (w)
+        me = {
+          token: w.token,
+          ahead: w.position - 1,
+          est: w.estimated_wait,
+          served: false,
+        };
+    }
+  }
+  const done = state && joined && !me;
+
+  const stage = me?.served
+    ? "turn"
+    : me && me.ahead <= 1
+    ? "soon"
+    : me
+    ? "waiting"
+    : done
+    ? "done"
+    : null;
+
+  useEffect(() => {
+    if (!stage || !joined) return;
+    const prev = stageRef.current;
+    stageRef.current = stage;
+    if (prev === null) return;
+    if (stage === "soon" && prev !== "soon" && prev !== "turn") {
+      chime();
+      notify("You're almost up", `${joined.name}: only ${me?.ahead ?? 0} ahead.`);
+    } else if (stage === "turn" && prev !== "turn") {
+      chime();
+      notify("It's your turn!", `${joined.name}: token ${me?.token} — please proceed.`);
+    }
+  }, [stage, joined, me]);
 
   const header = (
     <TopBar
@@ -89,6 +146,13 @@ export default function PatientView() {
             time update live — no need to crowd the waiting room.
           </p>
 
+          <input
+            className="input reason-input"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Reason for visit / symptoms (optional)"
+          />
+
           <div className="clinic-list">
             {clinics.length === 0 && (
               <div className="empty">No clinics are open yet.</div>
@@ -114,23 +178,6 @@ export default function PatientView() {
     );
   }
 
-  let me = null;
-  if (state) {
-    if (state.serving && state.serving.patient_id === account.id) {
-      me = { token: state.serving.token, ahead: 0, est: 0, served: true };
-    } else {
-      const w = state.waiting.find((x) => x.patient_id === account.id);
-      if (w)
-        me = {
-          token: w.token,
-          ahead: w.position - 1,
-          est: w.estimated_wait,
-          served: false,
-        };
-    }
-  }
-  const done = state && !me;
-
   return (
     <div className="page">
       {header}
@@ -138,19 +185,21 @@ export default function PatientView() {
         <div className="section-title" style={{ textAlign: "center" }}>
           {joined.name}
         </div>
-        <div className="h1" style={{ textAlign: "center", marginBottom: 24 }}>
-          {me?.served
+        <div className="h1" style={{ textAlign: "center", marginBottom: 20 }}>
+          {stage === "turn"
             ? "It's your turn"
+            : stage === "soon"
+            ? "You're almost up"
             : done
             ? "Your consultation is complete"
             : "You're in the queue"}
         </div>
 
-        <div className="now-serving">
+        <div className={"now-serving" + (stage === "turn" ? " is-turn" : "")}>
           <div className="label">Your Token</div>
           <div className="big-token">{joined.token ?? me?.token ?? "—"}</div>
           <div className="pat-name">
-            {me?.served
+            {stage === "turn"
               ? "Please proceed to the doctor"
               : done
               ? "Thanks for visiting"
@@ -161,7 +210,7 @@ export default function PatientView() {
           </div>
         </div>
 
-        {!done && !me?.served && (
+        {!done && stage !== "turn" && (
           <div className="info-row">
             <div className="info-card">
               <div className="v">{me?.ahead ?? "—"}</div>
@@ -169,7 +218,9 @@ export default function PatientView() {
             </div>
             <div className="info-card">
               <div className="v">{me?.est ?? "—"}</div>
-              <div className="k">Estimated wait (min)</div>
+              <div className="k">
+                Est. wait · seen ~{me ? clockTime(me.est) : "—"}
+              </div>
             </div>
           </div>
         )}
