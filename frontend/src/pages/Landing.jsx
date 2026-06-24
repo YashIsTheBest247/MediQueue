@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Footer, navMotion, ThemeToggle } from "../components/Chrome.jsx";
+import { Footer, navMotion, ThemeToggle, NavBurger } from "../components/Chrome.jsx";
 import BrandMark from "../components/BrandMark.jsx";
 import { useT, LanguageSwitcher } from "../i18n.jsx";
 
@@ -85,6 +86,7 @@ const BENEFITS = [
 export default function Landing() {
   const navigate = useNavigate();
   const { t } = useT();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="page landing">
@@ -93,7 +95,10 @@ export default function Landing() {
         <Link
           to="/"
           className="brand"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          onClick={() => {
+            setMenuOpen(false);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
         >
           <div className="logo">
             <BrandMark />
@@ -126,7 +131,54 @@ export default function Landing() {
             {t("Get started")}
           </button>
         </div>
+        <NavBurger open={menuOpen} onClick={() => setMenuOpen((o) => !o)} />
         </div>
+
+        {menuOpen && (
+          <div className="nav-mobile">
+            {NAV.map((n) => (
+              <a
+                key={n.href}
+                href={n.href}
+                className="nav-mobile-link"
+                onClick={() => setMenuOpen(false)}
+              >
+                {t(n.label)}
+              </a>
+            ))}
+            <Link
+              to="/explore"
+              className="nav-mobile-link"
+              onClick={() => setMenuOpen(false)}
+            >
+              {t("Live Queues")}
+            </Link>
+            <div className="nav-mobile-tools">
+              <ThemeToggle />
+              <LanguageSwitcher />
+            </div>
+            <div className="nav-mobile-cta">
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate("/auth?mode=login");
+                }}
+              >
+                {t("Log in")}
+              </button>
+              <button
+                className="btn btn-indigo"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate("/auth?mode=signup");
+                }}
+              >
+                {t("Get started")}
+              </button>
+            </div>
+          </div>
+        )}
       </motion.header>
 
       <div className="wrap">

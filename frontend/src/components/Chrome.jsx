@@ -59,14 +59,30 @@ export function BackButton({ to }) {
   );
 }
 
+export function NavBurger({ open, onClick }) {
+  return (
+    <button
+      className={"nav-burger" + (open ? " open" : "")}
+      onClick={onClick}
+      aria-label="Menu"
+      aria-expanded={open}
+    >
+      <span />
+      <span />
+      <span />
+    </button>
+  );
+}
+
 export function TopBar({ connected, right, links, back }) {
   const { t } = useT();
+  const [open, setOpen] = useState(false);
   return (
     <motion.header className="navbar" {...navMotion}>
       <div className="topbar">
         <div className="nav-left">
           {back && <BackButton to={typeof back === "string" ? back : undefined} />}
-          <Link to="/" className="brand">
+          <Link to="/" className="brand" onClick={() => setOpen(false)}>
             <div className="logo">
               <BrandMark />
             </div>
@@ -94,7 +110,34 @@ export function TopBar({ connected, right, links, back }) {
           <LanguageSwitcher />
           {right}
         </div>
+
+        <NavBurger open={open} onClick={() => setOpen((o) => !o)} />
       </div>
+
+      {open && (
+        <div className="nav-mobile">
+          {links &&
+            links.map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                className="nav-mobile-link"
+                onClick={() => setOpen(false)}
+              >
+                {l.label}
+              </Link>
+            ))}
+          <div className="nav-mobile-tools">
+            <ThemeToggle />
+            <LanguageSwitcher />
+          </div>
+          {right && (
+            <div className="nav-mobile-cta" onClick={() => setOpen(false)}>
+              {right}
+            </div>
+          )}
+        </div>
+      )}
     </motion.header>
   );
 }

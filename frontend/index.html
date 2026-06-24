@@ -17,11 +17,7 @@
     <script>
       (function () {
         try {
-          var t = localStorage.getItem("mq_theme");
-          if (!t)
-            t = window.matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark"
-              : "light";
+          var t = localStorage.getItem("mq_theme") || "light";
           document.documentElement.dataset.theme = t;
         } catch (e) {}
       })();
