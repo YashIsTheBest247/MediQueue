@@ -69,6 +69,7 @@ export function AuthProvider({ children }) {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || "Google sign-in failed");
+      if (d.needs_role) return { needsRole: true, email: d.email, name: d.name };
       save(d.token, d.account);
       return d.account;
     },

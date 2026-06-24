@@ -334,12 +334,14 @@ def google_auth(body: GoogleBody):
     conn = get_conn()
     row = conn.execute("SELECT * FROM accounts WHERE email=?", (email,)).fetchone()
     if not row:
-        role = body.role if body.role in ("clinic", "patient") else "patient"
+        if body.role not in ("clinic", "patient"):
+            conn.close()
+            return {"needs_role": True, "email": email, "name": info["name"]}
         try:
             cur = conn.execute(
                 "INSERT INTO accounts (role, name, email, password_hash, provider) "
                 "VALUES (?,?,?,?, 'google')",
-                (role, info["name"], email, "!google"),
+                (body.role, info["name"], email, "!google"),
             )
             row = conn.execute(
                 "SELECT * FROM accounts WHERE id=?", (cur.lastrowid,)
@@ -422,6 +424,38 @@ def list_clinics():
             (r["id"],),
         ).fetchone()["c"]
         result.append({"id": r["id"], "name": r["name"], "waiting": waiting})
+    conn.close()
+    return {"clinics": result}
+
+
+@app.get("/api/clinics/overview")
+def clinics_overview():
+    conn = get_conn()
+    clinics = conn.execute(
+        "SELECT id, name, avg_time FROM accounts WHERE role='clinic' ORDER BY name"
+    ).fetchall()
+    result = []
+    for c in clinics:
+        waiting = conn.execute(
+            "SELECT COUNT(*) AS n FROM tokens WHERE clinic_id=? AND status='waiting'",
+            (c["id"],),
+        ).fetchone()["n"]
+        serving = conn.execute(
+            "SELECT number FROM tokens WHERE clinic_id=? AND status='serving' LIMIT 1",
+            (c["id"],),
+        ).fetchone()
+        serving_flag = 1 if serving else 0
+        result.append(
+            {
+                "id": c["id"],
+                "name": c["name"],
+                "current_token": serving["number"] if serving else None,
+                "waiting": waiting,
+                "avg_consultation_time": c["avg_time"],
+                "estimated_wait": (waiting + serving_flag) * c["avg_time"],
+                "is_open": serving_flag == 1 or waiting > 0,
+            }
+        )
     conn.close()
     return {"clinics": result}
 

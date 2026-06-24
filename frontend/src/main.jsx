@@ -14,6 +14,7 @@ import Auth from "./pages/Auth.jsx";
 import ClinicDashboard from "./pages/ClinicDashboard.jsx";
 import PatientView from "./pages/PatientView.jsx";
 import DisplayBoard from "./pages/DisplayBoard.jsx";
+import ExploreClinics from "./pages/ExploreClinics.jsx";
 import "./styles.css";
 
 function Protected({ role, children }) {
@@ -25,12 +26,12 @@ function Protected({ role, children }) {
 }
 
 const pageVariants = {
-  initial: { opacity: 0, y: 16, scale: 0.99, filter: "blur(6px)" },
-  animate: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" },
-  exit: { opacity: 0, y: -12, scale: 0.99, filter: "blur(4px)" },
+  initial: { opacity: 0, y: 4 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0 },
 };
 
-const pageTransition = { duration: 0.5, ease: [0.22, 1, 0.36, 1] };
+const pageTransition = { duration: 0.18, ease: "easeOut" };
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -65,6 +66,7 @@ function AnimatedRoutes() {
             }
           />
           <Route path="/display/:clinicId" element={<DisplayBoard />} />
+        <Route path="/explore" element={<ExploreClinics />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </motion.div>

@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import BrandMark from "./BrandMark.jsx";
 
 export const navMotion = {
-  initial: { y: -24, opacity: 0 },
-  animate: { y: 0, opacity: 1 },
-  transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.05 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  transition: { duration: 0.2, ease: "easeOut" },
 };
 
 export function BackButton({ to }) {
@@ -28,7 +29,9 @@ export function TopBar({ connected, right, links, back }) {
         <div className="nav-left">
           {back && <BackButton to={typeof back === "string" ? back : undefined} />}
           <Link to="/" className="brand">
-            <div className="logo">M</div>
+            <div className="logo">
+              <BrandMark />
+            </div>
             <div>
               <div className="name">
                 Medi<span>Queue</span>
@@ -64,7 +67,9 @@ export function Footer() {
 
         <div className="footer-bottom">
           <div className="footer-brand">
-            <div className="logo">M</div>
+            <div className="logo">
+              <BrandMark />
+            </div>
             <div>
               <div className="fb-name">MediQueue</div>
               <div className="fb-sub">

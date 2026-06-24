@@ -3,9 +3,10 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { BackButton } from "../components/Chrome.jsx";
 import GoogleButton from "../components/GoogleButton.jsx";
+import BrandMark from "../components/BrandMark.jsx";
 
 export default function Auth() {
-  const { login, signup } = useAuth();
+  const { login, signup, google } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
@@ -20,6 +21,11 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [googlePending, setGooglePending] = useState(null);
+
+  function go(account) {
+    navigate(account.role === "clinic" ? "/clinic" : "/patient");
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -30,9 +36,36 @@ export default function Auth() {
         mode === "login"
           ? await login(email, password)
           : await signup(role, name, email, password);
-      navigate(account.role === "clinic" ? "/clinic" : "/patient");
+      go(account);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGoogle(credential) {
+    setError("");
+    setBusy(true);
+    try {
+      const res = await google(credential);
+      if (res.needsRole) setGooglePending({ credential, name: res.name });
+      else go(res);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pickGoogleRole(chosen) {
+    setBusy(true);
+    try {
+      const account = await google(googlePending.credential, chosen);
+      go(account);
+    } catch (err) {
+      setError(err.message);
+      setGooglePending(null);
     } finally {
       setBusy(false);
     }
@@ -45,7 +78,9 @@ export default function Auth() {
           <BackButton />
         </div>
         <Link to="/" className="brand auth-brand">
-          <div className="logo">M</div>
+          <div className="logo">
+            <BrandMark />
+          </div>
           <div className="name">
             Medi<span>Queue</span>
           </div>
@@ -135,14 +170,7 @@ export default function Auth() {
           </button>
         </form>
 
-        <GoogleButton
-          autoPrompt
-          getRole={() => role}
-          onSuccess={(account) =>
-            navigate(account.role === "clinic" ? "/clinic" : "/patient")
-          }
-          onError={(m) => setError(m)}
-        />
+        <GoogleButton autoPrompt onCredential={handleGoogle} />
 
         <div className="auth-foot">
           {mode === "login" ? (
@@ -162,6 +190,41 @@ export default function Auth() {
           )}
         </div>
       </div>
+
+      {googlePending && (
+        <div className="role-modal">
+          <div className="role-modal-card card">
+            <div className="section-title">Almost there</div>
+            <h2 className="h1" style={{ fontSize: 23 }}>
+              How will you use <span>MediQueue?</span>
+            </h2>
+            <p className="sub">
+              Hi {googlePending.name}, pick your account type to finish signing up.
+            </p>
+            <div className="role-modal-grid">
+              <button
+                className="role-choice"
+                disabled={busy}
+                onClick={() => pickGoogleRole("clinic")}
+              >
+                <strong>I'm a Clinic</strong>
+                <span>Run the queue & dashboard</span>
+              </button>
+              <button
+                className="role-choice"
+                disabled={busy}
+                onClick={() => pickGoogleRole("patient")}
+              >
+                <strong>I'm a Patient</strong>
+                <span>Join a queue & track my token</span>
+              </button>
+            </div>
+            <button className="link" onClick={() => setGooglePending(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

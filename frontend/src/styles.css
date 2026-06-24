@@ -146,6 +146,16 @@ button {
   box-shadow: var(--shadow-sm);
 }
 
+.logo svg {
+  width: 62%;
+  height: 62%;
+}
+
+.why-logo svg {
+  width: 50%;
+  height: 50%;
+}
+
 .brand .name {
   font-weight: 800;
   font-size: 19px;
@@ -1370,23 +1380,31 @@ button.pill.ghost:active {
 
 .auth-page {
   display: grid;
-  place-items: center;
-  padding: 40px 18px;
+  place-items: start center;
+  padding: 22px 18px 40px;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 420px;
-  padding: 34px 30px;
+  max-width: 410px;
+  padding: 24px 26px;
+}
+
+.auth-card .field {
+  margin-top: 12px;
+  gap: 5px;
+}
+.auth-card .input {
+  padding: 11px 14px;
 }
 
 .auth-top {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .auth-brand {
   justify-content: center;
-  margin-bottom: 22px;
+  margin-bottom: 14px;
 }
 .auth-brand .name {
   color: var(--navy);
@@ -1401,11 +1419,11 @@ button.pill.ghost:active {
   grid-template-columns: 1fr 1fr;
   background: #eef6f7;
   border-radius: 12px;
-  padding: 5px;
-  margin-bottom: 16px;
+  padding: 4px;
+  margin-bottom: 10px;
 }
 .auth-tabs button {
-  padding: 10px;
+  padding: 8px;
   border-radius: 9px;
   background: transparent;
   font-weight: 700;
@@ -1425,7 +1443,7 @@ button.pill.ghost:active {
   margin-bottom: 6px;
 }
 .role-toggle button {
-  padding: 12px;
+  padding: 10px;
   border-radius: 12px;
   border: 1.5px solid var(--line);
   background: #f7fbfc;
@@ -1450,11 +1468,11 @@ button.pill.ghost:active {
 
 .auth-submit {
   width: 100%;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .google-wrap {
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .auth-divider {
@@ -1463,7 +1481,7 @@ button.pill.ghost:active {
   gap: 12px;
   color: var(--muted);
   font-size: 13px;
-  margin: 4px 0 16px;
+  margin: 2px 0 12px;
 }
 .auth-divider::before,
 .auth-divider::after {
@@ -1479,9 +1497,80 @@ button.pill.ghost:active {
   min-height: 44px;
 }
 
+.role-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(14, 58, 68, 0.45);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.role-modal-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 30px;
+  text-align: center;
+}
+
+.role-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 22px 0 14px;
+}
+
+.role-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 16px;
+  border-radius: 16px;
+  border: 1.5px solid var(--line);
+  background: #f7fbfc;
+  text-align: center;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.role-choice:hover:not(:disabled) {
+  transform: translateY(-3px);
+  border-color: var(--teal);
+  background: #e6f4f6;
+}
+.role-choice strong {
+  color: var(--navy);
+  font-size: 16px;
+}
+.role-choice span {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.role-choice:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .role-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .auth-foot {
   text-align: center;
-  margin-top: 18px;
+  margin-top: 12px;
   font-size: 14px;
   color: var(--muted);
 }
@@ -1513,6 +1602,105 @@ button.pill.ghost:active {
   color: var(--muted);
   font-size: 13px;
   margin-top: 2px;
+}
+
+.hero-explore {
+  margin-top: 18px;
+  font-size: 14.5px;
+}
+
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.explore-card {
+  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ex-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ex-name {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--navy);
+  flex: 1;
+}
+
+.ex-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+  background: #def2f4;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.ex-dot {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ex-dot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c2cdd0;
+}
+.ex-dot.open {
+  color: var(--green);
+}
+.ex-dot.open::before {
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(43, 182, 115, 0.18);
+}
+
+.ex-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.ex-stat {
+  background: #f6fbfc;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 8px;
+  text-align: center;
+}
+
+.ex-v {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--teal-dark);
+  line-height: 1;
+}
+
+.ex-k {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.ex-join {
+  width: 100%;
+  margin-top: auto;
 }
 
 .footer {
@@ -1637,61 +1825,6 @@ button.pill.ghost:active {
   }
 }
 
-
-.route-fade .card,
-.route-fade .now-serving,
-.route-fade .info-card,
-.route-fade .hero-copy,
-.route-fade .hero-media,
-.route-fade .ecosystem {
-  animation: riseIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.route-fade .hero-copy {
-  animation-delay: 0.05s;
-}
-.route-fade .hero-media {
-  animation-delay: 0.15s;
-}
-.route-fade .ecosystem {
-  animation-delay: 0.2s;
-}
-.route-fade .grid-2 > *:nth-child(1),
-.route-fade .role-cards > *:nth-child(1) {
-  animation-delay: 0.1s;
-}
-.route-fade .grid-2 > *:nth-child(2),
-.route-fade .role-cards > *:nth-child(2) {
-  animation-delay: 0.2s;
-}
-.route-fade .info-row > *:nth-child(1) {
-  animation-delay: 0.15s;
-}
-.route-fade .info-row > *:nth-child(2) {
-  animation-delay: 0.25s;
-}
-
-@keyframes routeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.992);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes riseIn {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .route-fade,

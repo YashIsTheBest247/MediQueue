@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Footer, navMotion } from "../components/Chrome.jsx";
+import BrandMark from "../components/BrandMark.jsx";
 
 const ctaHover = { whileHover: { y: -3, scale: 1.03 }, whileTap: { scale: 0.97 } };
 const ctaSpring = { type: "spring", stiffness: 380, damping: 22 };
@@ -92,7 +93,9 @@ export default function Landing() {
           className="brand"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         >
-          <div className="logo">M</div>
+          <div className="logo">
+            <BrandMark />
+          </div>
           <div className="name">
             Medi<span>Queue</span>
           </div>
@@ -103,6 +106,7 @@ export default function Landing() {
               {n.label}
             </a>
           ))}
+          <Link to="/explore">Live Queues</Link>
         </nav>
         <div className="ln-cta">
           <button
@@ -151,6 +155,12 @@ export default function Landing() {
                 For Patients
               </motion.button>
             </div>
+            <button
+              className="link hero-explore"
+              onClick={() => navigate("/explore")}
+            >
+              or compare live clinic queues →
+            </button>
           </div>
 
           <HeroMedia />
@@ -206,7 +216,9 @@ export default function Landing() {
               <p>{b.body}</p>
             </div>
           ))}
-          <div className="why-logo">M</div>
+          <div className="why-logo">
+            <BrandMark />
+          </div>
         </div>
       </section>
 

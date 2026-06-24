@@ -21,6 +21,16 @@ export default function PatientView() {
 
   useEffect(() => {
     if (joined) return;
+    const pre = localStorage.getItem("mq_preselect_clinic");
+    if (pre) {
+      localStorage.removeItem("mq_preselect_clinic");
+      try {
+        join(JSON.parse(pre));
+        return;
+      } catch {
+        void 0;
+      }
+    }
     authedFetch("/api/clinics")
       .then((r) => r.json())
       .then((d) => setClinics(d.clinics || []))

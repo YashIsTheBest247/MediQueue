@@ -1,17 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useAuth, API } from "../auth.jsx";
+import { API } from "../auth.jsx";
 
-export default function GoogleButton({ getRole, onSuccess, onError, autoPrompt }) {
-  const { google } = useAuth();
+export default function GoogleButton({ onCredential, autoPrompt }) {
   const divRef = useRef(null);
   const [clientId, setClientId] = useState(null);
-
-  const roleRef = useRef(getRole);
-  const successRef = useRef(onSuccess);
-  const errorRef = useRef(onError);
-  roleRef.current = getRole;
-  successRef.current = onSuccess;
-  errorRef.current = onError;
+  const cbRef = useRef(onCredential);
+  cbRef.current = onCredential;
 
   useEffect(() => {
     let cancelled = false;
@@ -36,17 +30,7 @@ export default function GoogleButton({ getRole, onSuccess, onError, autoPrompt }
       }
       window.google.accounts.id.initialize({
         client_id: clientId,
-        callback: async (resp) => {
-          try {
-            const account = await google(
-              resp.credential,
-              roleRef.current ? roleRef.current() : undefined
-            );
-            successRef.current?.(account);
-          } catch (e) {
-            errorRef.current?.(e.message);
-          }
-        },
+        callback: (resp) => cbRef.current?.(resp.credential),
       });
       divRef.current.innerHTML = "";
       window.google.accounts.id.renderButton(divRef.current, {
@@ -66,7 +50,7 @@ export default function GoogleButton({ getRole, onSuccess, onError, autoPrompt }
     }
     tryInit();
     return () => clearTimeout(timer);
-  }, [clientId, google, autoPrompt]);
+  }, [clientId, autoPrompt]);
 
   if (!clientId) return null;
 

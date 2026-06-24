@@ -9,9 +9,15 @@ MediQueue supports two real sign-in methods:
    OAuth Client ID (steps below). Until then the Google button is hidden and
    email/password still works.
 
-Both clinics and patients can use either method. On signup the chosen role
-(Clinic / Patient) is what a brand-new account is created as; existing accounts
-keep their role no matter how they sign in.
+Both clinics and patients can use either method. Role handling:
+
+- **Email signup** collects the role (Clinic / Patient) up front via the toggle.
+- **Google sign-in**: existing accounts sign straight in and keep their role. A
+  brand-new Google user is shown a one-time "How will you use MediQueue?" step
+  (Clinic or Patient) before the account is created — the backend returns
+  `{ "needs_role": true }` until a valid role is supplied with the credential.
+- **Login** never asks for a role; the backend returns the account's role and the
+  app routes to the clinic dashboard or patient view accordingly.
 
 ## Enable Google sign-in
 
