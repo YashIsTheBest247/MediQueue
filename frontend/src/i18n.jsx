@@ -163,8 +163,8 @@ const DICT = {
     "Spinning up live queues…": "लाइव कतारें शुरू हो रही हैं…",
     "Almost there…": "बस थोड़ा और…",
     "Thanks for your patience…": "आपके धैर्य के लिए धन्यवाद…",
-    "The free server is waking up — this can take up to a minute.":
-      "मुफ़्त सर्वर जाग रहा है — इसमें एक मिनट तक लग सकता है।",
+    "The server is waking up — this can take up to a minute.":
+      "सर्वर जाग रहा है — इसमें एक मिनट तक लग सकता है।",
     "Copied ✓": "कॉपी हो गया ✓",
     "Loading nearby places…": "आस-पास की जगहें लोड हो रही हैं…",
     "Couldn't load nearby places — registered clinics still shown.":
