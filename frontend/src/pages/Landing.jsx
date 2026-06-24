@@ -1,5 +1,39 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Footer } from "../components/Chrome.jsx";
+import { motion } from "framer-motion";
+import { Footer, navMotion } from "../components/Chrome.jsx";
+
+const ctaHover = { whileHover: { y: -3, scale: 1.03 }, whileTap: { scale: 0.97 } };
+const ctaSpring = { type: "spring", stiffness: 380, damping: 22 };
+
+function HeroMedia() {
+  return (
+    <div className="hero-media">
+      <div className="hero-blob" />
+      <img
+        src={HERO_IMG}
+        alt="Doctor reassuring a patient"
+        onError={(e) => {
+          if (e.currentTarget.src !== HERO_FALLBACK)
+            e.currentTarget.src = HERO_FALLBACK;
+        }}
+      />
+      <div className="float-badge fb-top">
+        <span className="fb-ic green" />
+        <div>
+          <strong>Happy Patients</strong>
+          <small>Calmer, clearer waits</small>
+        </div>
+      </div>
+      <div className="float-badge fb-bottom">
+        <span className="fb-ic teal" />
+        <div>
+          <strong>Real-time tokens</strong>
+          <small>Live across every screen</small>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const NAV = [
   { href: "#solution", label: "Our Solution" },
@@ -51,8 +85,13 @@ export default function Landing() {
 
   return (
     <div className="page landing">
-      <header className="landing-nav">
-        <Link to="/" className="brand">
+      <motion.header className="navbar" {...navMotion}>
+        <div className="landing-nav">
+        <Link
+          to="/"
+          className="brand"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        >
           <div className="logo">M</div>
           <div className="name">
             Medi<span>Queue</span>
@@ -79,7 +118,8 @@ export default function Landing() {
             Get started
           </button>
         </div>
-      </header>
+        </div>
+      </motion.header>
 
       <div className="wrap">
         <section className="hero-split">
@@ -94,46 +134,26 @@ export default function Landing() {
               the day from one calm dashboard.
             </p>
             <div className="hero-ctas">
-              <button
+              <motion.button
                 className="btn btn-primary"
                 onClick={() => navigate("/auth?mode=signup&role=clinic")}
+                {...ctaHover}
+                transition={ctaSpring}
               >
                 For Clinics
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 className="btn btn-ghost"
                 onClick={() => navigate("/auth?mode=signup&role=patient")}
+                {...ctaHover}
+                transition={ctaSpring}
               >
                 For Patients
-              </button>
+              </motion.button>
             </div>
           </div>
 
-          <div className="hero-media">
-            <div className="hero-blob" />
-            <img
-              src={HERO_IMG}
-              alt="Doctor reassuring a patient"
-              onError={(e) => {
-                if (e.currentTarget.src !== HERO_FALLBACK)
-                  e.currentTarget.src = HERO_FALLBACK;
-              }}
-            />
-            <div className="float-badge fb-top">
-              <span className="fb-ic green" />
-              <div>
-                <strong>Happy Patients</strong>
-                <small>Calmer, clearer waits</small>
-              </div>
-            </div>
-            <div className="float-badge fb-bottom">
-              <span className="fb-ic teal" />
-              <div>
-                <strong>Real-time tokens</strong>
-                <small>Live across every screen</small>
-              </div>
-            </div>
-          </div>
+          <HeroMedia />
         </section>
       </div>
 

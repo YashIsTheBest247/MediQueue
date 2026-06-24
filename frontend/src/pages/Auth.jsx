@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
+import { BackButton } from "../components/Chrome.jsx";
 
 export default function Auth() {
   const { login, signup } = useAuth();
@@ -39,6 +40,9 @@ export default function Auth() {
   return (
     <div className="page auth-page">
       <div className="auth-card card">
+        <div className="auth-top">
+          <BackButton to="/" />
+        </div>
         <Link to="/" className="brand auth-brand">
           <div className="logo">M</div>
           <div className="name">

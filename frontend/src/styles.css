@@ -28,11 +28,27 @@
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: "Poppins", system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
+}
+
+#solution,
+#why,
+#problem {
+  scroll-margin-top: 100px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 a {
@@ -54,15 +70,61 @@ button {
     var(--bg);
 }
 
+.navbar {
+  position: sticky;
+  top: 14px;
+  z-index: 50;
+  max-width: 1180px;
+  margin: 14px auto 0;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(160%) blur(16px);
+  -webkit-backdrop-filter: saturate(160%) blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 22px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 18px 40px -20px rgba(15, 60, 70, 0.4);
+  transition: box-shadow 0.3s ease;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 18px 10px 15px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--teal-deep);
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+.back-btn:hover {
+  background: #f0f8f9;
+}
+.back-btn::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 18px 34px;
-  max-width: 1280px;
-  margin: 0 auto;
+  padding: 9px 22px;
 }
 
 .brand {
@@ -72,15 +134,15 @@ button {
 }
 
 .brand .logo {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   background: linear-gradient(135deg, var(--teal), var(--teal-deep));
   display: grid;
   place-items: center;
   color: #fff;
   font-weight: 800;
-  font-size: 20px;
+  font-size: 18px;
   box-shadow: var(--shadow-sm);
 }
 
@@ -240,11 +302,16 @@ button {
   border-radius: 14px;
   font-weight: 700;
   font-size: 15px;
-  transition: transform 0.08s ease, filter 0.15s ease;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s ease, filter 0.15s ease, background 0.15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
 }
 
 .btn:active {
-  transform: translateY(1px);
+  transform: translateY(0);
 }
 
 .btn-primary {
@@ -614,6 +681,7 @@ button {
   min-height: 420px;
 }
 
+
 .hero-blob {
   position: absolute;
   inset: 6% -2% 0 8%;
@@ -626,8 +694,9 @@ button {
   position: relative;
   z-index: 1;
   width: 100%;
-  height: 460px;
+  height: 430px;
   object-fit: cover;
+  object-position: center 18%;
   border-radius: 26px;
   box-shadow: var(--shadow);
 }
@@ -795,24 +864,22 @@ button {
 .landing-nav {
   display: flex;
   align-items: center;
-  gap: 30px;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 22px 34px;
+  gap: 28px;
+  padding: 10px 22px;
 }
 
 .landing-nav .brand .name {
   color: var(--indigo-deep);
-  font-size: 26px;
+  font-size: 22px;
 }
 .landing-nav .brand .name span {
   color: var(--indigo-bright);
 }
 .landing-nav .brand .logo {
   background: linear-gradient(135deg, var(--indigo-bright), var(--indigo-deep));
-  width: 46px;
-  height: 46px;
-  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  font-size: 21px;
 }
 
 .ln-links {
@@ -1275,6 +1342,11 @@ button {
   display: flex;
   gap: 10px;
 }
+.ln-cta .btn {
+  padding: 10px 20px;
+  font-size: 14.5px;
+  border-radius: 12px;
+}
 
 .auth-page {
   display: grid;
@@ -1286,6 +1358,10 @@ button {
   width: 100%;
   max-width: 420px;
   padding: 34px 30px;
+}
+
+.auth-top {
+  margin-bottom: 16px;
 }
 
 .auth-brand {
@@ -1515,9 +1591,6 @@ button {
   }
 }
 
-.route-fade {
-  animation: routeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
 
 .route-fade .card,
 .route-fade .now-serving,
@@ -1559,7 +1632,7 @@ button {
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
 }
 
@@ -1570,7 +1643,7 @@ button {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -1703,6 +1776,10 @@ button {
 @media (max-width: 560px) {
   .eco-grid {
     grid-template-columns: 1fr;
+  }
+  .navbar {
+    margin: 12px 12px 0;
+    border-radius: 18px;
   }
   .nav-actions {
     width: 100%;

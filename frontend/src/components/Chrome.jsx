@@ -1,38 +1,63 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
-export function TopBar({ connected, right, links }) {
+export const navMotion = {
+  initial: { y: -24, opacity: 0 },
+  animate: { y: 0, opacity: 1 },
+  transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.05 },
+};
+
+export function BackButton({ to }) {
+  const navigate = useNavigate();
   return (
-    <div className="topbar">
-      <Link to="/" className="brand">
-        <div className="logo">M</div>
-        <div>
-          <div className="name">
-            Medi<span>Queue</span>
-          </div>
-          <div className="tag">Smart Clinic Queue</div>
+    <button
+      className="back-btn"
+      onClick={() => (to ? navigate(to) : navigate(-1))}
+      aria-label="Go back"
+    >
+      Back
+    </button>
+  );
+}
+
+export function TopBar({ connected, right, links, back }) {
+  return (
+    <motion.header className="navbar" {...navMotion}>
+      <div className="topbar">
+        <div className="nav-left">
+          {back && <BackButton to={typeof back === "string" ? back : undefined} />}
+          <Link to="/" className="brand">
+            <div className="logo">M</div>
+            <div>
+              <div className="name">
+                Medi<span>Queue</span>
+              </div>
+              <div className="tag">Smart Clinic Queue</div>
+            </div>
+          </Link>
         </div>
-      </Link>
 
-      {links && (
-        <nav className="top-nav">
-          {links.map((l) => (
-            <Link key={l.to} to={l.to}>
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-      )}
-
-      <div className="nav-actions">
-        {right}
-        {connected !== undefined && (
-          <span className="pill ghost">
-            <span className={"dot" + (connected ? " on" : "")} />
-            {connected ? "Live" : "Reconnecting"}
-          </span>
+        {links && (
+          <nav className="top-nav">
+            {links.map((l) => (
+              <Link key={l.to} to={l.to}>
+                {l.label}
+              </Link>
+            ))}
+          </nav>
         )}
+
+        <div className="nav-actions">
+          {right}
+          {connected !== undefined && (
+            <span className="pill ghost">
+              <span className={"dot" + (connected ? " on" : "")} />
+              {connected ? "Live" : "Reconnecting"}
+            </span>
+          )}
+        </div>
       </div>
-    </div>
+    </motion.header>
   );
 }
 

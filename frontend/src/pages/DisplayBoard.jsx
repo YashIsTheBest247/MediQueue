@@ -13,7 +13,7 @@ export default function DisplayBoard() {
 
   return (
     <div className="page">
-      <TopBar connected={connected} />
+      <TopBar connected={connected} back="/" />
 
       <div className="wrap">
         <div className="section-title" style={{ textAlign: "center" }}>
