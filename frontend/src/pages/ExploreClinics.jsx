@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../auth.jsx";
 import { TopBar } from "../components/Chrome.jsx";
+import { useT } from "../i18n.jsx";
 
 export default function ExploreClinics() {
   const navigate = useNavigate();
+  const { t } = useT();
   const [clinics, setClinics] = useState(null);
 
   useEffect(() => {
@@ -43,49 +45,66 @@ export default function ExploreClinics() {
       <TopBar back connected />
 
       <div className="wrap">
-        <div className="section-title">Live clinic queues</div>
+        <div className="section-title">{t("Live clinic queues")}</div>
         <div className="h1">
-          Find the <span>shortest wait</span>
+          {t("Find the")} <span>{t("shortest wait")}</span>
         </div>
         <p className="sub">
-          Compare clinics in real time — no login needed. Pick the one that suits
-          you, then sign in to grab your token.
+          {t(
+            "Compare clinics in real time — no login needed. Pick the one that suits you, then sign in to grab your token."
+          )}
         </p>
 
         <div className="explore-grid">
-          {clinics === null && <div className="empty">Loading clinics…</div>}
+          {clinics === null && <div className="empty">{t("Loading clinics…")}</div>}
           {clinics && clinics.length === 0 && (
-            <div className="empty">No clinics have registered yet.</div>
+            <div className="empty">{t("No clinics have registered yet.")}</div>
           )}
           {sorted.map((c, i) => (
             <div key={c.id} className="explore-card card">
               <div className="ex-head">
                 <div className="ex-name">{c.name}</div>
                 {i === 0 && c.is_open && (
-                  <span className="ex-badge">Shortest wait</span>
+                  <span className="ex-badge">{t("Shortest wait")}</span>
                 )}
                 <span className={"ex-dot" + (c.is_open ? " open" : "")}>
-                  {c.is_open ? "Open" : "Idle"}
+                  {c.is_open ? t("Open") : t("Idle")}
                 </span>
               </div>
 
               <div className="ex-stats">
                 <div className="ex-stat">
                   <div className="ex-v">{c.current_token ?? "—"}</div>
-                  <div className="ex-k">Now serving</div>
+                  <div className="ex-k">{t("Now serving")}</div>
                 </div>
                 <div className="ex-stat">
                   <div className="ex-v">{c.waiting}</div>
-                  <div className="ex-k">Waiting</div>
+                  <div className="ex-k">{t("Waiting")}</div>
                 </div>
                 <div className="ex-stat">
                   <div className="ex-v">{c.estimated_wait}</div>
-                  <div className="ex-k">Est. wait (min)</div>
+                  <div className="ex-k">{t("Est. wait (min)")}</div>
                 </div>
               </div>
 
-              <button className="btn btn-primary ex-join" onClick={() => choose(c)}>
-                Join this clinic
+              <div className="ex-meta">
+                {c.rooms > 1 && (
+                  <span>
+                    {c.rooms} {t("rooms")}
+                  </span>
+                )}
+                {c.hours && <span>{c.hours}</span>}
+                {c.departments?.length > 0 && (
+                  <span>{c.departments.join(" · ")}</span>
+                )}
+              </div>
+
+              <button
+                className="btn btn-primary ex-join"
+                disabled={!c.is_open}
+                onClick={() => choose(c)}
+              >
+                {c.is_open ? t("Join this clinic") : t("Currently closed")}
               </button>
             </div>
           ))}

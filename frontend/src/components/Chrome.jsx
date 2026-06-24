@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import BrandMark from "./BrandMark.jsx";
+import { LanguageSwitcher, useT } from "../i18n.jsx";
 
 export const navMotion = {
   initial: { opacity: 0 },
@@ -10,6 +11,7 @@ export const navMotion = {
 
 export function BackButton({ to }) {
   const navigate = useNavigate();
+  const { t } = useT();
   function goBack() {
     if (to) navigate(to);
     else if (window.history.length > 1) navigate(-1);
@@ -17,12 +19,13 @@ export function BackButton({ to }) {
   }
   return (
     <button className="back-btn" onClick={goBack} aria-label="Go back">
-      Back
+      {t("Back")}
     </button>
   );
 }
 
 export function TopBar({ connected, right, links, back }) {
+  const { t } = useT();
   return (
     <motion.header className="navbar" {...navMotion}>
       <div className="topbar">
@@ -36,7 +39,7 @@ export function TopBar({ connected, right, links, back }) {
               <div className="name">
                 Medi<span>Queue</span>
               </div>
-              <div className="tag">Smart Clinic Queue</div>
+              <div className="tag">{t("Smart Clinic Queue")}</div>
             </div>
           </Link>
         </div>
@@ -51,7 +54,10 @@ export function TopBar({ connected, right, links, back }) {
           </nav>
         )}
 
-        <div className="nav-actions">{right}</div>
+        <div className="nav-actions">
+          <LanguageSwitcher />
+          {right}
+        </div>
       </div>
     </motion.header>
   );

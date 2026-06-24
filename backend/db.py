@@ -29,7 +29,12 @@ def init_db():
             avg_time INTEGER NOT NULL DEFAULT 10,
             current_token INTEGER,
             next_token INTEGER NOT NULL DEFAULT 1,
-            paused INTEGER NOT NULL DEFAULT 0
+            paused INTEGER NOT NULL DEFAULT 0,
+            clinic_id INTEGER,
+            room_count INTEGER NOT NULL DEFAULT 1,
+            departments TEXT NOT NULL DEFAULT '',
+            is_open INTEGER NOT NULL DEFAULT 1,
+            hours TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS tokens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,21 +45,32 @@ def init_db():
             status TEXT NOT NULL DEFAULT 'waiting',
             priority INTEGER NOT NULL DEFAULT 0,
             reason TEXT,
+            room INTEGER,
+            department TEXT,
+            appointment_at TEXT,
             created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_tokens_clinic ON tokens (clinic_id, status);
         """
     )
-    acc_cols = [r[1] for r in conn.execute("PRAGMA table_info(accounts)").fetchall()]
-    if "provider" not in acc_cols:
-        conn.execute("ALTER TABLE accounts ADD COLUMN provider TEXT NOT NULL DEFAULT 'local'")
-    if "paused" not in acc_cols:
-        conn.execute("ALTER TABLE accounts ADD COLUMN paused INTEGER NOT NULL DEFAULT 0")
-    tok_cols = [r[1] for r in conn.execute("PRAGMA table_info(tokens)").fetchall()]
-    if "priority" not in tok_cols:
-        conn.execute("ALTER TABLE tokens ADD COLUMN priority INTEGER NOT NULL DEFAULT 0")
-    if "reason" not in tok_cols:
-        conn.execute("ALTER TABLE tokens ADD COLUMN reason TEXT")
+
+    def ensure(table, col, ddl):
+        cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+        if col not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
+
+    ensure("accounts", "provider", "provider TEXT NOT NULL DEFAULT 'local'")
+    ensure("accounts", "paused", "paused INTEGER NOT NULL DEFAULT 0")
+    ensure("accounts", "clinic_id", "clinic_id INTEGER")
+    ensure("accounts", "room_count", "room_count INTEGER NOT NULL DEFAULT 1")
+    ensure("accounts", "departments", "departments TEXT NOT NULL DEFAULT ''")
+    ensure("accounts", "is_open", "is_open INTEGER NOT NULL DEFAULT 1")
+    ensure("accounts", "hours", "hours TEXT NOT NULL DEFAULT ''")
+    ensure("tokens", "priority", "priority INTEGER NOT NULL DEFAULT 0")
+    ensure("tokens", "reason", "reason TEXT")
+    ensure("tokens", "room", "room INTEGER")
+    ensure("tokens", "department", "department TEXT")
+    ensure("tokens", "appointment_at", "appointment_at TEXT")
     conn.commit()
     conn.close()
 

@@ -36,13 +36,25 @@ app.add_middleware(
 init_db()
 
 
+def parse_departments(value) -> list:
+    if not value:
+        return []
+    return [d.strip() for d in value.split(",") if d.strip()]
+
+
 def public_account(row) -> dict:
+    keys = row.keys()
     return {
         "id": row["id"],
         "role": row["role"],
         "name": row["name"],
         "email": row["email"],
         "avg_time": row["avg_time"],
+        "clinic_id": row["clinic_id"] if "clinic_id" in keys else None,
+        "room_count": row["room_count"] if "room_count" in keys else 1,
+        "departments": parse_departments(row["departments"] if "departments" in keys else ""),
+        "is_open": bool(row["is_open"]) if "is_open" in keys else True,
+        "hours": row["hours"] if "hours" in keys else "",
     }
 
 
@@ -67,25 +79,39 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
         "SELECT number, name FROM tokens WHERE clinic_id=? AND status='skipped' ORDER BY number",
         (clinic_id,),
     ).fetchall()
+    booked_rows = conn.execute(
+        "SELECT id, number, name, department, appointment_at, reason "
+        "FROM tokens WHERE clinic_id=? AND status='booked' ORDER BY appointment_at",
+        (clinic_id,),
+    ).fetchall()
     conn.close()
 
     avg = clinic["avg_time"]
-    serving = None
+    room_count = clinic["room_count"]
+
+    servings = []
     for r in rows:
         if r["status"] == "serving":
-            serving = {
-                "token": r["number"],
-                "name": r["name"],
-                "patient_id": r["patient_id"],
-                "reason": r["reason"],
-                "priority": r["priority"],
-            }
-    serving_block = 1 if serving else 0
+            servings.append(
+                {
+                    "token": r["number"],
+                    "name": r["name"],
+                    "patient_id": r["patient_id"],
+                    "reason": r["reason"],
+                    "priority": r["priority"],
+                    "department": r["department"],
+                    "room": r["room"],
+                }
+            )
+    servings.sort(key=lambda s: s["room"] or 0)
+    busy_rooms = len(servings)
+
     waiting = []
     idx = 0
     for r in rows:
         if r["status"] == "waiting":
             idx += 1
+            est = (max(0, idx - room_count) + busy_rooms // max(1, room_count)) * avg
             waiting.append(
                 {
                     "token": r["number"],
@@ -93,25 +119,43 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
                     "patient_id": r["patient_id"],
                     "reason": r["reason"],
                     "priority": r["priority"],
+                    "department": r["department"],
                     "position": idx,
-                    "estimated_wait": (idx - 1 + serving_block) * avg,
+                    "estimated_wait": est,
                 }
             )
+
     return {
         "type": "state_update",
         "clinic_id": clinic_id,
         "clinic_name": clinic["name"],
-        "current_token": clinic["current_token"],
         "paused": bool(clinic["paused"]),
-        "serving": serving,
+        "is_open": bool(clinic["is_open"]),
+        "hours": clinic["hours"],
+        "room_count": room_count,
+        "departments": parse_departments(clinic["departments"]),
+        "current_token": servings[0]["token"] if servings else None,
+        "serving": servings[0] if servings else None,
+        "servings": servings,
         "waiting": waiting,
         "skipped": [{"token": s["number"], "name": s["name"]} for s in skipped_rows],
+        "appointments": [
+            {
+                "id": b["id"],
+                "token": b["number"],
+                "name": b["name"],
+                "department": b["department"],
+                "appointment_at": b["appointment_at"],
+                "reason": b["reason"],
+            }
+            for b in booked_rows
+        ],
         "tokens_ahead": len(waiting),
         "avg_consultation_time": avg,
         "stats": {
             "waiting": len(waiting),
             "served": served,
-            "total": len(waiting) + served + (1 if serving else 0),
+            "total": len(waiting) + served + busy_rooms,
         },
         "timestamp": now_iso(),
     }
@@ -123,6 +167,9 @@ def add_token(
     patient_id: Optional[int] = None,
     priority: int = 0,
     reason: Optional[str] = None,
+    department: Optional[str] = None,
+    status: str = "waiting",
+    appointment_at: Optional[str] = None,
 ) -> Optional[int]:
     conn = get_conn()
     try:
@@ -135,9 +182,21 @@ def add_token(
             return None
         number = clinic["next_token"]
         conn.execute(
-            "INSERT INTO tokens (clinic_id, patient_id, name, number, status, priority, reason, created_at) "
-            "VALUES (?,?,?,?, 'waiting', ?, ?, ?)",
-            (clinic_id, patient_id, name, number, priority, reason, now_iso()),
+            "INSERT INTO tokens (clinic_id, patient_id, name, number, status, priority, "
+            "reason, department, appointment_at, created_at) "
+            "VALUES (?,?,?,?, ?, ?, ?, ?, ?, ?)",
+            (
+                clinic_id,
+                patient_id,
+                name,
+                number,
+                status,
+                priority,
+                reason,
+                department,
+                appointment_at,
+                now_iso(),
+            ),
         )
         conn.execute(
             "UPDATE accounts SET next_token=? WHERE id=?", (number + 1, clinic_id)
@@ -151,31 +210,42 @@ def add_token(
         conn.close()
 
 
-def _advance(conn, clinic_id: int, current_status: str) -> Optional[int]:
-    conn.execute(
-        f"UPDATE tokens SET status='{current_status}' WHERE clinic_id=? AND status='serving'",
-        (clinic_id,),
-    )
-    nxt = conn.execute(
+def _next_waiting(conn, clinic_id: int, department: Optional[str]):
+    if department:
+        return conn.execute(
+            "SELECT * FROM tokens WHERE clinic_id=? AND status='waiting' AND department=? "
+            "ORDER BY priority DESC, number ASC LIMIT 1",
+            (clinic_id, department),
+        ).fetchone()
+    return conn.execute(
         "SELECT * FROM tokens WHERE clinic_id=? AND status='waiting' "
         "ORDER BY priority DESC, number ASC LIMIT 1",
         (clinic_id,),
     ).fetchone()
+
+
+def _advance_room(
+    conn, clinic_id: int, room: int, current_status: str, department: Optional[str]
+) -> Optional[int]:
+    conn.execute(
+        f"UPDATE tokens SET status='{current_status}', room=NULL "
+        "WHERE clinic_id=? AND status='serving' AND room=?",
+        (clinic_id, room),
+    )
+    nxt = _next_waiting(conn, clinic_id, department)
     if nxt:
-        conn.execute("UPDATE tokens SET status='serving' WHERE id=?", (nxt["id"],))
         conn.execute(
-            "UPDATE accounts SET current_token=? WHERE id=?", (nxt["number"], clinic_id)
+            "UPDATE tokens SET status='serving', room=? WHERE id=?", (room, nxt["id"])
         )
         return nxt["number"]
-    conn.execute("UPDATE accounts SET current_token=NULL WHERE id=?", (clinic_id,))
     return None
 
 
-def do_call_next(clinic_id: int) -> Optional[int]:
+def do_call_next(clinic_id: int, room: int, department: Optional[str] = None) -> Optional[int]:
     conn = get_conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
-        called = _advance(conn, clinic_id, "done")
+        called = _advance_room(conn, clinic_id, room, "done", department)
         conn.execute("COMMIT")
         return called
     except Exception:
@@ -185,11 +255,11 @@ def do_call_next(clinic_id: int) -> Optional[int]:
         conn.close()
 
 
-def do_skip(clinic_id: int) -> Optional[int]:
+def do_skip(clinic_id: int, room: int, department: Optional[str] = None) -> Optional[int]:
     conn = get_conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
-        called = _advance(conn, clinic_id, "skipped")
+        called = _advance_room(conn, clinic_id, room, "skipped", department)
         conn.execute("COMMIT")
         return called
     except Exception:
@@ -218,7 +288,7 @@ def do_recall(clinic_id: int) -> int:
         conn.close()
 
 
-def do_call_specific(clinic_id: int, number: int) -> Optional[int]:
+def do_call_specific(clinic_id: int, number: int, room: int) -> Optional[int]:
     conn = get_conn()
     try:
         conn.execute("BEGIN IMMEDIATE")
@@ -230,12 +300,42 @@ def do_call_specific(clinic_id: int, number: int) -> Optional[int]:
             conn.execute("ROLLBACK")
             return None
         conn.execute(
-            "UPDATE tokens SET status='done' WHERE clinic_id=? AND status='serving'",
-            (clinic_id,),
+            "UPDATE tokens SET status='done', room=NULL "
+            "WHERE clinic_id=? AND status='serving' AND room=?",
+            (clinic_id, room),
         )
-        conn.execute("UPDATE tokens SET status='serving' WHERE id=?", (target["id"],))
         conn.execute(
-            "UPDATE accounts SET current_token=? WHERE id=?", (number, clinic_id)
+            "UPDATE tokens SET status='serving', room=? WHERE id=?", (room, target["id"])
+        )
+        conn.execute("COMMIT")
+        return number
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
+
+
+def do_admit(clinic_id: int, token_id: int) -> Optional[int]:
+    conn = get_conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT * FROM tokens WHERE id=? AND clinic_id=? AND status='booked'",
+            (token_id, clinic_id),
+        ).fetchone()
+        if not row:
+            conn.execute("ROLLBACK")
+            return None
+        clinic = conn.execute(
+            "SELECT next_token FROM accounts WHERE id=?", (clinic_id,)
+        ).fetchone()
+        number = clinic["next_token"]
+        conn.execute(
+            "UPDATE tokens SET status='waiting', number=? WHERE id=?", (number, token_id)
+        )
+        conn.execute(
+            "UPDATE accounts SET next_token=? WHERE id=?", (number + 1, clinic_id)
         )
         conn.execute("COMMIT")
         return number
@@ -317,9 +417,17 @@ def get_account(authorization: Optional[str] = Header(None)) -> dict:
 
 
 def require_clinic(account=Depends(get_account)) -> dict:
-    if account["role"] != "clinic":
-        raise HTTPException(status_code=403, detail="Clinic account required")
-    return account
+    if account["role"] == "clinic":
+        return account
+    if account["role"] == "staff" and account["clinic_id"]:
+        conn = get_conn()
+        clinic = conn.execute(
+            "SELECT * FROM accounts WHERE id=? AND role='clinic'", (account["clinic_id"],)
+        ).fetchone()
+        conn.close()
+        if clinic:
+            return dict(clinic)
+    raise HTTPException(status_code=403, detail="Clinic access required")
 
 
 def require_patient(account=Depends(get_account)) -> dict:
@@ -329,10 +437,11 @@ def require_patient(account=Depends(get_account)) -> dict:
 
 
 class SignupBody(BaseModel):
-    role: str = Field(pattern="^(clinic|patient)$")
+    role: str = Field(pattern="^(clinic|patient|staff)$")
     name: str = Field(min_length=1, max_length=80)
     email: str = Field(min_length=3, max_length=120)
     password: str = Field(min_length=4, max_length=128)
+    clinic_code: Optional[int] = None
 
 
 class LoginBody(BaseModel):
@@ -349,6 +458,7 @@ class AddPatientBody(BaseModel):
     name: str = Field(default="", max_length=80)
     priority: int = Field(default=0, ge=0, le=1)
     reason: str = Field(default="", max_length=160)
+    department: str = Field(default="", max_length=60)
 
 
 class AvgTimeBody(BaseModel):
@@ -359,8 +469,27 @@ class PauseBody(BaseModel):
     paused: bool
 
 
+class SettingsBody(BaseModel):
+    room_count: Optional[int] = Field(default=None, ge=1, le=12)
+    departments: Optional[str] = Field(default=None, max_length=400)
+    is_open: Optional[bool] = None
+    hours: Optional[str] = Field(default=None, max_length=120)
+
+
+class CallBody(BaseModel):
+    room: int = Field(default=1, ge=1, le=12)
+    department: str = Field(default="", max_length=60)
+
+
 class JoinBody(BaseModel):
     reason: str = Field(default="", max_length=160)
+    department: str = Field(default="", max_length=60)
+
+
+class BookBody(BaseModel):
+    appointment_at: str = Field(max_length=40)
+    reason: str = Field(default="", max_length=160)
+    department: str = Field(default="", max_length=60)
 
 
 @app.get("/")
@@ -377,11 +506,29 @@ def signup(body: SignupBody):
     email = body.email.strip().lower()
     if not valid_email(email):
         raise HTTPException(status_code=400, detail="Please enter a valid email address")
+    clinic_id = None
+    if body.role == "staff":
+        if not body.clinic_code:
+            raise HTTPException(status_code=400, detail="A clinic code is required for staff")
+        conn = get_conn()
+        clinic = conn.execute(
+            "SELECT id FROM accounts WHERE id=? AND role='clinic'", (body.clinic_code,)
+        ).fetchone()
+        conn.close()
+        if not clinic:
+            raise HTTPException(status_code=404, detail="No clinic found for that code")
+        clinic_id = body.clinic_code
     conn = get_conn()
     try:
         cur = conn.execute(
-            "INSERT INTO accounts (role, name, email, password_hash) VALUES (?,?,?,?)",
-            (body.role, body.name.strip(), email, auth.hash_password(body.password)),
+            "INSERT INTO accounts (role, name, email, password_hash, clinic_id) VALUES (?,?,?,?,?)",
+            (
+                body.role,
+                body.name.strip(),
+                email,
+                auth.hash_password(body.password),
+                clinic_id,
+            ),
         )
         conn.commit()
         row = conn.execute(
@@ -484,23 +631,24 @@ async def clinic_add_patient(body: AddPatientBody, account=Depends(require_clini
         name,
         priority=body.priority,
         reason=body.reason.strip() or None,
+        department=body.department.strip() or None,
     )
     await broadcast_clinic(account["id"])
     return {"added": {"token": number, "name": name}, "state": clinic_snapshot(account["id"])}
 
 
 @app.post("/api/clinic/call-next")
-async def clinic_call_next(account=Depends(require_clinic)):
+async def clinic_call_next(body: CallBody = CallBody(), account=Depends(require_clinic)):
     if account["paused"]:
         raise HTTPException(status_code=409, detail="Queue is paused")
-    called = do_call_next(account["id"])
+    called = do_call_next(account["id"], body.room, body.department.strip() or None)
     await broadcast_clinic(account["id"])
     return {"called": called, "state": clinic_snapshot(account["id"])}
 
 
 @app.post("/api/clinic/skip")
-async def clinic_skip(account=Depends(require_clinic)):
-    called = do_skip(account["id"])
+async def clinic_skip(body: CallBody = CallBody(), account=Depends(require_clinic)):
+    called = do_skip(account["id"], body.room, body.department.strip() or None)
     await broadcast_clinic(account["id"])
     return {"called": called, "state": clinic_snapshot(account["id"])}
 
@@ -513,10 +661,12 @@ async def clinic_recall(account=Depends(require_clinic)):
 
 
 @app.post("/api/clinic/call/{number}")
-async def clinic_call_specific(number: int, account=Depends(require_clinic)):
+async def clinic_call_specific(
+    number: int, body: CallBody = CallBody(), account=Depends(require_clinic)
+):
     if account["paused"]:
         raise HTTPException(status_code=409, detail="Queue is paused")
-    called = do_call_specific(account["id"], number)
+    called = do_call_specific(account["id"], number, body.room)
     if called is None:
         raise HTTPException(status_code=404, detail="Token not found in the waiting list")
     await broadcast_clinic(account["id"])
@@ -549,6 +699,43 @@ async def clinic_pause(body: PauseBody, account=Depends(require_clinic)):
     conn.close()
     await broadcast_clinic(account["id"])
     return {"paused": body.paused, "state": clinic_snapshot(account["id"])}
+
+
+@app.put("/api/clinic/settings")
+async def clinic_settings(body: SettingsBody, account=Depends(require_clinic)):
+    conn = get_conn()
+    if body.room_count is not None:
+        conn.execute(
+            "UPDATE accounts SET room_count=? WHERE id=?", (body.room_count, account["id"])
+        )
+    if body.departments is not None:
+        cleaned = ",".join(
+            d.strip() for d in body.departments.split(",") if d.strip()
+        )
+        conn.execute(
+            "UPDATE accounts SET departments=? WHERE id=?", (cleaned, account["id"])
+        )
+    if body.is_open is not None:
+        conn.execute(
+            "UPDATE accounts SET is_open=? WHERE id=?",
+            (1 if body.is_open else 0, account["id"]),
+        )
+    if body.hours is not None:
+        conn.execute(
+            "UPDATE accounts SET hours=? WHERE id=?", (body.hours.strip(), account["id"])
+        )
+    conn.close()
+    await broadcast_clinic(account["id"])
+    return {"state": clinic_snapshot(account["id"])}
+
+
+@app.post("/api/clinic/admit/{token_id}")
+async def clinic_admit(token_id: int, account=Depends(require_clinic)):
+    number = do_admit(account["id"], token_id)
+    if number is None:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    await broadcast_clinic(account["id"])
+    return {"admitted": number, "state": clinic_snapshot(account["id"])}
 
 
 @app.put("/api/clinic/avg-time")
@@ -587,7 +774,7 @@ async def clinic_reset(account=Depends(require_clinic)):
 def list_clinics():
     conn = get_conn()
     rows = conn.execute(
-        "SELECT id, name FROM accounts WHERE role='clinic' ORDER BY name"
+        "SELECT id, name, departments, is_open FROM accounts WHERE role='clinic' ORDER BY name"
     ).fetchall()
     result = []
     for r in rows:
@@ -595,7 +782,15 @@ def list_clinics():
             "SELECT COUNT(*) AS c FROM tokens WHERE clinic_id=? AND status='waiting'",
             (r["id"],),
         ).fetchone()["c"]
-        result.append({"id": r["id"], "name": r["name"], "waiting": waiting})
+        result.append(
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "waiting": waiting,
+                "departments": parse_departments(r["departments"]),
+                "is_open": bool(r["is_open"]),
+            }
+        )
     conn.close()
     return {"clinics": result}
 
@@ -604,7 +799,8 @@ def list_clinics():
 def clinics_overview():
     conn = get_conn()
     clinics = conn.execute(
-        "SELECT id, name, avg_time, paused FROM accounts WHERE role='clinic' ORDER BY name"
+        "SELECT id, name, avg_time, paused, is_open, hours, room_count, departments "
+        "FROM accounts WHERE role='clinic' ORDER BY name"
     ).fetchall()
     result = []
     for c in clinics:
@@ -613,21 +809,31 @@ def clinics_overview():
             (c["id"],),
         ).fetchone()["n"]
         serving = conn.execute(
-            "SELECT number FROM tokens WHERE clinic_id=? AND status='serving' LIMIT 1",
+            "SELECT number FROM tokens WHERE clinic_id=? AND status='serving' "
+            "ORDER BY room LIMIT 1",
             (c["id"],),
         ).fetchone()
-        serving_flag = 1 if serving else 0
+        serving_count = conn.execute(
+            "SELECT COUNT(*) AS n FROM tokens WHERE clinic_id=? AND status='serving'",
+            (c["id"],),
+        ).fetchone()["n"]
         paused = bool(c["paused"])
+        manually_open = bool(c["is_open"])
+        rooms = c["room_count"]
+        est = (waiting // max(1, rooms) + (1 if serving_count else 0)) * c["avg_time"]
         result.append(
             {
                 "id": c["id"],
                 "name": c["name"],
                 "current_token": serving["number"] if serving else None,
                 "waiting": waiting,
+                "rooms": rooms,
+                "departments": parse_departments(c["departments"]),
+                "hours": c["hours"],
                 "avg_consultation_time": c["avg_time"],
-                "estimated_wait": (waiting + serving_flag) * c["avg_time"],
+                "estimated_wait": est,
                 "paused": paused,
-                "is_open": not paused and (serving_flag == 1 or waiting > 0),
+                "is_open": manually_open and not paused,
             }
         )
     conn.close()
@@ -648,10 +854,14 @@ def patient_status(clinic_id: int, patient_id: int) -> dict:
         raise HTTPException(status_code=404, detail="Clinic not found")
     mine = None
     being_served = False
-    if snap["serving"] and snap["serving"]["patient_id"] == patient_id:
-        mine = snap["serving"]["token"]
-        being_served = True
-    else:
+    my_room = None
+    for s in snap["servings"]:
+        if s["patient_id"] == patient_id:
+            mine = s["token"]
+            being_served = True
+            my_room = s["room"]
+            break
+    if not being_served:
         for w in snap["waiting"]:
             if w["patient_id"] == patient_id:
                 mine = w["token"]
@@ -670,6 +880,7 @@ def patient_status(clinic_id: int, patient_id: int) -> dict:
         "in_queue": mine is not None,
         "my_token": mine,
         "being_served": being_served,
+        "my_room": my_room,
         "tokens_ahead": ahead,
         "estimated_wait": est,
         "current_token": snap["current_token"],
@@ -700,14 +911,15 @@ async def patient_join(
         if not existing:
             number = clinic["next_token"]
             conn.execute(
-                "INSERT INTO tokens (clinic_id, patient_id, name, number, status, reason, created_at) "
-                "VALUES (?,?,?,?, 'waiting', ?, ?)",
+                "INSERT INTO tokens (clinic_id, patient_id, name, number, status, reason, department, created_at) "
+                "VALUES (?,?,?,?, 'waiting', ?, ?, ?)",
                 (
                     clinic_id,
                     account["id"],
                     account["name"],
                     number,
                     body.reason.strip() or None,
+                    body.department.strip() or None,
                     now_iso(),
                 ),
             )
@@ -726,6 +938,57 @@ async def patient_join(
     if created:
         await broadcast_clinic(clinic_id)
     return patient_status(clinic_id, account["id"])
+
+
+@app.post("/api/clinics/{clinic_id}/book")
+async def patient_book(
+    clinic_id: int, body: BookBody, account=Depends(require_patient)
+):
+    conn = get_conn()
+    clinic = conn.execute(
+        "SELECT id FROM accounts WHERE id=? AND role='clinic'", (clinic_id,)
+    ).fetchone()
+    conn.close()
+    if not clinic:
+        raise HTTPException(status_code=404, detail="Clinic not found")
+    add_token(
+        clinic_id,
+        account["name"],
+        patient_id=account["id"],
+        reason=body.reason.strip() or None,
+        department=body.department.strip() or None,
+        status="booked",
+        appointment_at=body.appointment_at.strip(),
+    )
+    await broadcast_clinic(clinic_id)
+    return {"booked": True, "appointment_at": body.appointment_at}
+
+
+@app.get("/api/patient/queues")
+def patient_queues(account=Depends(require_patient)):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT t.clinic_id, t.number, t.status, t.department, t.appointment_at, "
+        "a.name AS clinic_name "
+        "FROM tokens t JOIN accounts a ON a.id = t.clinic_id "
+        "WHERE t.patient_id=? AND t.status IN ('waiting','serving','booked') "
+        "ORDER BY t.id DESC",
+        (account["id"],),
+    ).fetchall()
+    conn.close()
+    return {
+        "queues": [
+            {
+                "clinic_id": r["clinic_id"],
+                "clinic_name": r["clinic_name"],
+                "token": r["number"],
+                "status": r["status"],
+                "department": r["department"],
+                "appointment_at": r["appointment_at"],
+            }
+            for r in rows
+        ]
+    }
 
 
 @app.post("/api/clinics/{clinic_id}/leave")

@@ -31,11 +31,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signup = useCallback(
-    async (role, name, email, password) => {
+    async (role, name, email, password, clinicCode) => {
       const r = await fetch(`${API}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, name, email, password }),
+        body: JSON.stringify({
+          role,
+          name,
+          email,
+          password,
+          clinic_code: clinicCode ? Number(clinicCode) : null,
+        }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || "Signup failed");

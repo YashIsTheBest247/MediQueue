@@ -4,9 +4,11 @@ import { useAuth } from "../auth.jsx";
 import { BackButton } from "../components/Chrome.jsx";
 import GoogleButton from "../components/GoogleButton.jsx";
 import BrandMark from "../components/BrandMark.jsx";
+import { useT } from "../i18n.jsx";
 
 export default function Auth() {
   const { login, signup, google } = useAuth();
+  const { t } = useT();
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
@@ -24,7 +26,7 @@ export default function Auth() {
   const [googlePending, setGooglePending] = useState(null);
 
   function go(account) {
-    navigate(account.role === "clinic" ? "/clinic" : "/patient");
+    navigate(account.role === "patient" ? "/patient" : "/clinic");
   }
 
   async function submit(e) {
@@ -91,13 +93,13 @@ export default function Auth() {
             className={mode === "login" ? "on" : ""}
             onClick={() => setMode("login")}
           >
-            Log in
+            {t("Log in")}
           </button>
           <button
             className={mode === "signup" ? "on" : ""}
             onClick={() => setMode("signup")}
           >
-            Sign up
+            {t("Sign up")}
           </button>
         </div>
 
@@ -108,14 +110,14 @@ export default function Auth() {
               onClick={() => setRole("clinic")}
               type="button"
             >
-              I'm a Clinic
+              {t("I'm a Clinic")}
             </button>
             <button
               className={role === "patient" ? "on" : ""}
               onClick={() => setRole("patient")}
               type="button"
             >
-              I'm a Patient
+              {t("I'm a Patient")}
             </button>
           </div>
         )}
@@ -123,7 +125,7 @@ export default function Auth() {
         <form onSubmit={submit}>
           {mode === "signup" && (
             <div className="field">
-              <label>{role === "clinic" ? "Clinic name" : "Your name"}</label>
+              <label>{role === "clinic" ? t("Clinic name") : t("Your name")}</label>
               <input
                 className="input"
                 value={name}
@@ -134,7 +136,7 @@ export default function Auth() {
             </div>
           )}
           <div className="field">
-            <label>Email</label>
+            <label>{t("Email")}</label>
             <input
               className="input"
               type="email"
@@ -145,7 +147,7 @@ export default function Auth() {
             />
           </div>
           <div className="field">
-            <label>Password</label>
+            <label>{t("Password")}</label>
             <input
               className="input"
               type="password"
@@ -161,12 +163,12 @@ export default function Auth() {
 
           <button className="btn btn-primary auth-submit" disabled={busy}>
             {busy
-              ? "Please wait…"
+              ? t("Please wait…")
               : mode === "login"
-              ? "Log in"
+              ? t("Log in")
               : role === "clinic"
-              ? "Create clinic account"
-              : "Create patient account"}
+              ? t("Create clinic account")
+              : t("Create patient account")}
           </button>
         </form>
 
@@ -175,16 +177,16 @@ export default function Auth() {
         <div className="auth-foot">
           {mode === "login" ? (
             <span>
-              New here?{" "}
+              {t("New here?")}{" "}
               <button className="link" onClick={() => setMode("signup")}>
-                Create an account
+                {t("Create an account")}
               </button>
             </span>
           ) : (
             <span>
-              Already registered?{" "}
+              {t("Already registered?")}{" "}
               <button className="link" onClick={() => setMode("login")}>
-                Log in
+                {t("Log in")}
               </button>
             </span>
           )}

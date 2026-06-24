@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Footer, navMotion } from "../components/Chrome.jsx";
 import BrandMark from "../components/BrandMark.jsx";
+import { useT, LanguageSwitcher } from "../i18n.jsx";
 
 const ctaHover = { whileHover: { y: -3, scale: 1.03 }, whileTap: { scale: 0.97 } };
 const ctaSpring = { type: "spring", stiffness: 380, damping: 22 };
@@ -83,6 +84,7 @@ const BENEFITS = [
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { t } = useT();
 
   return (
     <div className="page landing">
@@ -103,23 +105,24 @@ export default function Landing() {
         <nav className="ln-links">
           {NAV.map((n) => (
             <a key={n.href} href={n.href}>
-              {n.label}
+              {t(n.label)}
             </a>
           ))}
-          <Link to="/explore">Live Queues</Link>
+          <Link to="/explore">{t("Live Queues")}</Link>
         </nav>
         <div className="ln-cta">
+          <LanguageSwitcher />
           <button
             className="btn btn-ghost"
             onClick={() => navigate("/auth?mode=login")}
           >
-            Log in
+            {t("Log in")}
           </button>
           <button
             className="btn btn-indigo"
             onClick={() => navigate("/auth?mode=signup")}
           >
-            Get started
+            {t("Get started")}
           </button>
         </div>
         </div>
@@ -129,13 +132,13 @@ export default function Landing() {
         <section className="hero-split">
           <div className="hero-copy">
             <h1 className="hero-title">
-              Where Healing <br />
-              Feels Like <span>Home</span>
+              {t("Where Healing")} <br />
+              {t("Feels Like")} <span>{t("Home")}</span>
             </h1>
             <p className="hero-lead">
-              Start your journey to better care. End paper token slips and shouted
-              names — patients see exactly when they'll be called, and clinics run
-              the day from one calm dashboard.
+              {t(
+                "Start your journey to better care. End paper token slips and shouted names — patients see exactly when they'll be called, and clinics run the day from one calm dashboard."
+              )}
             </p>
             <div className="hero-ctas">
               <motion.button
@@ -144,7 +147,7 @@ export default function Landing() {
                 {...ctaHover}
                 transition={ctaSpring}
               >
-                For Clinics
+                {t("For Clinics")}
               </motion.button>
               <motion.button
                 className="btn btn-ghost"
@@ -152,14 +155,14 @@ export default function Landing() {
                 {...ctaHover}
                 transition={ctaSpring}
               >
-                For Patients
+                {t("For Patients")}
               </motion.button>
             </div>
             <button
               className="link hero-explore"
               onClick={() => navigate("/explore")}
             >
-              or compare live clinic queues →
+              {t("or compare live clinic queues →")}
             </button>
           </div>
 
@@ -168,14 +171,14 @@ export default function Landing() {
       </div>
 
       <section id="solution" className="panel sky">
-        <h2 className="panel-title indigo">MediQueue's app</h2>
-        <p className="panel-sub">A simple app for clinic patients</p>
+        <h2 className="panel-title indigo">{t("MediQueue's app")}</h2>
+        <p className="panel-sub">{t("A simple app for clinic patients")}</p>
 
         <div className="callout-row">
           <div className="callout-col">
-            {APP_NOTES_LEFT.map((t, i) => (
+            {APP_NOTES_LEFT.map((note, i) => (
               <div key={i} className="bubble b-left">
-                {t}
+                {t(note)}
               </div>
             ))}
           </div>
@@ -183,37 +186,37 @@ export default function Landing() {
           <Phone />
 
           <div className="callout-col">
-            <div className="bubble b-right">{APP_NOTE_RIGHT}</div>
+            <div className="bubble b-right">{t(APP_NOTE_RIGHT)}</div>
           </div>
         </div>
       </section>
 
       <section className="panel indigo-bg">
-        <h2 className="panel-title light">MediQueue's system</h2>
-        <p className="panel-sub light">A system built to streamline the clinic</p>
+        <h2 className="panel-title light">{t("MediQueue's system")}</h2>
+        <p className="panel-sub light">{t("A system built to streamline the clinic")}</p>
 
         <div className="callout-row">
           <div className="callout-col">
-            <div className="bubble b-left">{SYS_NOTES.l1}</div>
-            <div className="bubble b-left">{SYS_NOTES.l2}</div>
+            <div className="bubble b-left">{t(SYS_NOTES.l1)}</div>
+            <div className="bubble b-left">{t(SYS_NOTES.l2)}</div>
           </div>
 
           <Laptop />
 
           <div className="callout-col">
-            <div className="bubble b-right">{SYS_NOTES.r1}</div>
-            <div className="bubble b-right">{SYS_NOTES.r2}</div>
+            <div className="bubble b-right">{t(SYS_NOTES.r1)}</div>
+            <div className="bubble b-right">{t(SYS_NOTES.r2)}</div>
           </div>
         </div>
       </section>
 
       <section id="why" className="panel sky-soft">
-        <h2 className="panel-title indigo center">Why MediQueue?</h2>
+        <h2 className="panel-title indigo center">{t("Why MediQueue?")}</h2>
         <div className="why-grid">
           {BENEFITS.map((b) => (
             <div key={b.title} className="why-card">
-              <h3>{b.title}</h3>
-              <p>{b.body}</p>
+              <h3>{t(b.title)}</h3>
+              <p>{t(b.body)}</p>
             </div>
           ))}
           <div className="why-logo">
@@ -224,30 +227,29 @@ export default function Landing() {
 
       <section id="problem" className="panel">
         <div className="prob-row sky-card">
-          <h2 className="prob-head indigo">Paper tokens and shouting</h2>
+          <h2 className="prob-head indigo">{t("Paper tokens and shouting")}</h2>
           <p>
-            76% of India's 1.5 million clinics still run on paper token slips and
-            shouted names. There's no system — just a slip of paper and a
-            receptionist calling out the next number across a crowded room.
+            {t(
+              "76% of India's 1.5 million clinics still run on paper token slips and shouted names. There's no system — just a slip of paper and a receptionist calling out the next number across a crowded room."
+            )}
           </p>
         </div>
 
         <div className="prob-row white-card reverse">
           <p>
-            Patients wait 2–3 hours with zero visibility into when they'll be
-            called. Doctors have no dashboard to see who's next, and receptionists
-            manage the entire queue from memory.
+            {t(
+              "Patients wait 2–3 hours with zero visibility into when they'll be called. Doctors have no dashboard to see who's next, and receptionists manage the entire queue from memory."
+            )}
           </p>
-          <h2 className="prob-head indigo">Hours of waiting, zero visibility</h2>
+          <h2 className="prob-head indigo">{t("Hours of waiting, zero visibility")}</h2>
         </div>
 
         <div className="prob-row sky-card">
-          <h2 className="prob-head indigo">You're going to fix that</h2>
+          <h2 className="prob-head indigo">{t("We're going to fix that")}</h2>
           <p>
-            MediQueue replaces the paper and the shouting with live digital
-            tokens. Patients see exactly when they're next, receptionists run the
-            day from one screen, and both stay in sync the moment "Call Next" is
-            clicked.
+            {t(
+              'MediQueue replaces the paper and the shouting with live digital tokens. Patients see exactly when they\'re next, receptionists run the day from one screen, and both stay in sync the moment "Call Next" is clicked.'
+            )}
           </p>
         </div>
       </section>

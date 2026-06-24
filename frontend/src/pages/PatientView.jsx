@@ -3,6 +3,7 @@ import { useAuth } from "../auth.jsx";
 import { useQueueSocket } from "../useQueue.js";
 import { TopBar } from "../components/Chrome.jsx";
 import { chime, notify, requestNotifyPermission } from "../notify.js";
+import { useT } from "../i18n.jsx";
 
 const STORE = "mq_patient_clinic";
 
@@ -17,6 +18,7 @@ function clockTime(mins) {
 
 export default function PatientView() {
   const { account, authedFetch, logout } = useAuth();
+  const { t } = useT();
   const [joined, setJoined] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(STORE) || "null");
@@ -25,11 +27,25 @@ export default function PatientView() {
     }
   });
   const [clinics, setClinics] = useState([]);
+  const [queues, setQueues] = useState([]);
   const [reason, setReason] = useState("");
+  const [apptTime, setApptTime] = useState("");
+  const [deptByClinic, setDeptByClinic] = useState({});
   const [busy, setBusy] = useState(false);
   const stageRef = useRef(null);
 
   const { state, connected } = useQueueSocket(joined?.id);
+
+  function loadLists() {
+    authedFetch("/api/clinics")
+      .then((r) => r.json())
+      .then((d) => setClinics(d.clinics || []))
+      .catch(() => setClinics([]));
+    authedFetch("/api/patient/queues")
+      .then((r) => r.json())
+      .then((d) => setQueues(d.queues || []))
+      .catch(() => setQueues([]));
+  }
 
   useEffect(() => {
     if (joined) return;
@@ -43,10 +59,7 @@ export default function PatientView() {
         void 0;
       }
     }
-    authedFetch("/api/clinics")
-      .then((r) => r.json())
-      .then((d) => setClinics(d.clinics || []))
-      .catch(() => setClinics([]));
+    loadLists();
   }, [joined, authedFetch]);
 
   function persist(j) {
@@ -61,11 +74,36 @@ export default function PatientView() {
     try {
       const r = await authedFetch(`/api/clinics/${clinic.id}/join`, {
         method: "POST",
-        body: JSON.stringify({ reason: reason.trim() }),
+        body: JSON.stringify({
+          reason: reason.trim(),
+          department: deptByClinic[clinic.id] || "",
+        }),
       });
       const d = await r.json();
       stageRef.current = null;
       persist({ id: clinic.id, name: clinic.name, token: d.my_token });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function book(clinic) {
+    if (!apptTime) {
+      alert("Pick an appointment time first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await authedFetch(`/api/clinics/${clinic.id}/book`, {
+        method: "POST",
+        body: JSON.stringify({
+          appointment_at: apptTime,
+          reason: reason.trim(),
+          department: deptByClinic[clinic.id] || "",
+        }),
+      });
+      loadLists();
+      alert(`Booked at ${clinic.name} for ${apptTime}.`);
     } finally {
       setBusy(false);
     }
@@ -79,8 +117,9 @@ export default function PatientView() {
 
   let me = null;
   if (state) {
-    if (state.serving && state.serving.patient_id === account.id) {
-      me = { token: state.serving.token, ahead: 0, est: 0, served: true };
+    const s = (state.servings || []).find((x) => x.patient_id === account.id);
+    if (s) {
+      me = { token: s.token, ahead: 0, est: 0, served: true, room: s.room };
     } else {
       const w = state.waiting.find((x) => x.patient_id === account.id);
       if (w)
@@ -93,7 +132,6 @@ export default function PatientView() {
     }
   }
   const done = state && joined && !me;
-
   const stage = me?.served
     ? "turn"
     : me && me.ahead <= 1
@@ -114,7 +152,12 @@ export default function PatientView() {
       notify("You're almost up", `${joined.name}: only ${me?.ahead ?? 0} ahead.`);
     } else if (stage === "turn" && prev !== "turn") {
       chime();
-      notify("It's your turn!", `${joined.name}: token ${me?.token} — please proceed.`);
+      notify(
+        "It's your turn!",
+        `${joined.name}: token ${me?.token}${
+          me?.room ? ` — go to Room ${me.room}` : ""
+        }.`
+      );
     }
   }, [stage, joined, me]);
 
@@ -137,39 +180,111 @@ export default function PatientView() {
       <div className="page">
         {header}
         <div className="wrap">
-          <div className="section-title">Patient</div>
+          <div className="section-title">{t("Patient")}</div>
           <div className="h1">
-            Join a <span>clinic queue</span>
+            {t("Join a")} <span>{t("clinic queue")}</span>
           </div>
           <p className="sub">
-            Pick your clinic to get a token. You'll see your position and wait
-            time update live — no need to crowd the waiting room.
+            {t(
+              "Pick a clinic to get a token, or book a time for later. You can be in more than one queue at once."
+            )}
           </p>
+
+          {queues.length > 0 && (
+            <div className="my-queues">
+              <div className="section-title">{t("Your active queues")}</div>
+              {queues.map((q) => (
+                <div key={`${q.clinic_id}-${q.token}`} className="clinic-row card">
+                  <div>
+                    <div className="nm">{q.clinic_name}</div>
+                    <div className="meta">
+                      {q.status === "booked"
+                        ? `${t("Booked")} · ${q.appointment_at}`
+                        : `${t("Token")} ${q.token ?? "—"} · ${q.status}`}
+                    </div>
+                  </div>
+                  {q.status !== "booked" && (
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() =>
+                        persist({
+                          id: q.clinic_id,
+                          name: q.clinic_name,
+                          token: q.token,
+                        })
+                      }
+                    >
+                      {t("View")}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           <input
             className="input reason-input"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Reason for visit / symptoms (optional)"
+            placeholder={t("Reason for visit / symptoms (optional)")}
           />
+          <div className="field">
+            <label>{t("Book for later (optional)")}</label>
+            <input
+              className="input"
+              type="datetime-local"
+              value={apptTime}
+              onChange={(e) => setApptTime(e.target.value)}
+            />
+          </div>
 
           <div className="clinic-list">
             {clinics.length === 0 && (
-              <div className="empty">No clinics are open yet.</div>
+              <div className="empty">{t("No clinics are open yet.")}</div>
             )}
             {clinics.map((c) => (
               <div key={c.id} className="clinic-row card">
-                <div>
-                  <div className="nm">{c.name}</div>
-                  <div className="meta">{c.waiting} waiting in queue</div>
+                <div className="cr-main">
+                  <div className="nm">
+                    {c.name}
+                    {!c.is_open && <span className="closed-tag">{t("Closed")}</span>}
+                  </div>
+                  <div className="meta">
+                    {c.waiting} {t("Waiting")}
+                  </div>
+                  {c.departments?.length > 0 && (
+                    <select
+                      className="input dept-select"
+                      value={deptByClinic[c.id] || ""}
+                      onChange={(e) =>
+                        setDeptByClinic({ ...deptByClinic, [c.id]: e.target.value })
+                      }
+                    >
+                      <option value="">{t("Any department")}</option>
+                      {c.departments.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
-                <button
-                  className="btn btn-primary"
-                  disabled={busy}
-                  onClick={() => join(c)}
-                >
-                  Join queue
-                </button>
+                <div className="cr-act">
+                  <button
+                    className="btn btn-primary"
+                    disabled={busy || !c.is_open}
+                    onClick={() => join(c)}
+                  >
+                    {t("Join now")}
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    disabled={busy}
+                    onClick={() => book(c)}
+                  >
+                    {t("Book")}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -187,26 +302,28 @@ export default function PatientView() {
         </div>
         <div className="h1" style={{ textAlign: "center", marginBottom: 20 }}>
           {stage === "turn"
-            ? "It's your turn"
+            ? t("It's your turn")
             : stage === "soon"
-            ? "You're almost up"
+            ? t("You're almost up")
             : done
-            ? "Your consultation is complete"
-            : "You're in the queue"}
+            ? t("Your consultation is complete")
+            : t("You're in the queue")}
         </div>
 
         <div className={"now-serving" + (stage === "turn" ? " is-turn" : "")}>
-          <div className="label">Your Token</div>
+          <div className="label">{t("Your Token")}</div>
           <div className="big-token">{joined.token ?? me?.token ?? "—"}</div>
           <div className="pat-name">
             {stage === "turn"
-              ? "Please proceed to the doctor"
+              ? me?.room
+                ? `${t("Please proceed to Room")} ${me.room}`
+                : t("Please proceed to the doctor")
               : done
-              ? "Thanks for visiting"
-              : `Now serving token ${state?.current_token ?? "—"}`}
+              ? t("Thanks for visiting")
+              : `${t("Now serving token")} ${state?.current_token ?? "—"}`}
           </div>
           <div className="pulse">
-            {connected ? "Live · updates automatically" : "Reconnecting…"}
+            {connected ? t("Live · updates automatically") : t("Reconnecting…")}
           </div>
         </div>
 
@@ -214,20 +331,24 @@ export default function PatientView() {
           <div className="info-row">
             <div className="info-card">
               <div className="v">{me?.ahead ?? "—"}</div>
-              <div className="k">Patients ahead of you</div>
+              <div className="k">{t("Patients ahead of you")}</div>
             </div>
             <div className="info-card">
               <div className="v">{me?.est ?? "—"}</div>
               <div className="k">
-                Est. wait · seen ~{me ? clockTime(me.est) : "—"}
+                {t("Est. wait · seen ~")}
+                {me ? clockTime(me.est) : "—"}
               </div>
             </div>
           </div>
         )}
 
         <div style={{ textAlign: "center", marginTop: 26 }}>
+          <button className="btn btn-ghost" onClick={() => persist(null)}>
+            ← {t("My queues")}
+          </button>{" "}
           <button className="btn btn-ghost" onClick={leave}>
-            {done ? "Back to clinics" : "Leave queue"}
+            {done ? t("Done") : t("Leave queue")}
           </button>
         </div>
       </div>

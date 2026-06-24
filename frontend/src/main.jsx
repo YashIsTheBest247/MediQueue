@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { AuthProvider, useAuth } from "./auth.jsx";
+import { LanguageProvider, useT } from "./i18n.jsx";
 import Landing from "./pages/Landing.jsx";
 import Auth from "./pages/Auth.jsx";
 import ClinicDashboard from "./pages/ClinicDashboard.jsx";
@@ -21,8 +22,11 @@ import "./styles.css";
 function Protected({ role, children }) {
   const { account } = useAuth();
   if (!account) return <Navigate to="/auth" replace />;
-  if (role && account.role !== role)
-    return <Navigate to={account.role === "clinic" ? "/clinic" : "/patient"} replace />;
+  const clinicSide = account.role === "clinic" || account.role === "staff";
+  const home = clinicSide ? "/clinic" : "/patient";
+  if (role === "clinic" && !clinicSide) return <Navigate to={home} replace />;
+  if (role === "patient" && account.role !== "patient")
+    return <Navigate to={home} replace />;
   return children;
 }
 
@@ -36,10 +40,11 @@ const pageTransition = { duration: 0.18, ease: "easeOut" };
 
 function AnimatedRoutes() {
   const location = useLocation();
+  const { lang } = useT();
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
-        key={location.pathname}
+        key={`${location.pathname}::${lang}`}
         className="route-fade"
         variants={pageVariants}
         initial="initial"
@@ -79,11 +84,13 @@ function AnimatedRoutes() {
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <MotionConfig reducedMotion="user">
-      <AuthProvider>
-        <BrowserRouter>
-          <AnimatedRoutes />
-        </BrowserRouter>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <AnimatedRoutes />
+          </BrowserRouter>
+        </AuthProvider>
+      </LanguageProvider>
     </MotionConfig>
   </React.StrictMode>
 );
