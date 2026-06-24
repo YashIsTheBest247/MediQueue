@@ -28,10 +28,17 @@ ADMIN_KEY = os.environ.get("MEDIQUEUE_ADMIN_KEY", "mediqueue-admin")
 
 app = FastAPI(title="MediQueue API", version="2.1.0")
 
+_origins_env = os.environ.get("ALLOWED_ORIGINS", "").strip()
+ALLOWED_ORIGINS = (
+    [o.strip() for o in _origins_env.split(",") if o.strip()]
+    if _origins_env
+    else ["*"]
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=ALLOWED_ORIGINS != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -675,6 +682,11 @@ def login(body: LoginBody):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = auth.create_token(row["id"], row["role"])
     return {"token": token, "account": public_account(row)}
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
 
 
 @app.get("/api/auth/config")
