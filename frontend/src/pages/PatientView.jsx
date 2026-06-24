@@ -114,7 +114,7 @@ export default function PatientView() {
         me = {
           token: w.token,
           ahead: w.position - 1,
-          est: (w.position - 1) * state.avg_consultation_time,
+          est: w.estimated_wait,
           served: false,
         };
     }

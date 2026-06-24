@@ -9,7 +9,7 @@ export default function DisplayBoard() {
   const serving = state?.serving;
   const waiting = state?.waiting ?? [];
   const tokensAhead = state?.tokens_ahead ?? 0;
-  const avg = state?.avg_consultation_time ?? 10;
+  const lastWait = waiting.length ? waiting[waiting.length - 1].estimated_wait : 0;
 
   return (
     <div className="page">
@@ -41,7 +41,7 @@ export default function DisplayBoard() {
             <div className="k">Tokens in queue</div>
           </div>
           <div className="info-card">
-            <div className="v">{tokensAhead * avg}</div>
+            <div className="v">{lastWait}</div>
             <div className="k">Est. wait for last token (min)</div>
           </div>
         </div>

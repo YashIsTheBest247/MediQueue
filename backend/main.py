@@ -66,6 +66,7 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
                 "name": r["name"],
                 "patient_id": r["patient_id"],
             }
+    serving_block = 1 if serving else 0
     waiting = []
     idx = 0
     for r in rows:
@@ -77,7 +78,7 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
                     "name": r["name"],
                     "patient_id": r["patient_id"],
                     "position": idx,
-                    "estimated_wait": idx * avg,
+                    "estimated_wait": (idx - 1 + serving_block) * avg,
                 }
             )
     return {
@@ -378,7 +379,7 @@ def patient_status(clinic_id: int, patient_id: int) -> dict:
         for w in snap["waiting"]:
             if w["token"] == mine:
                 ahead = w["position"] - 1
-                est = ahead * snap["avg_consultation_time"]
+                est = w["estimated_wait"]
                 break
     return {
         "clinic_id": clinic_id,
