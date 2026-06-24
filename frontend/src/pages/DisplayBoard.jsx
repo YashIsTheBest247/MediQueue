@@ -1,14 +1,15 @@
-import { useClinic } from "../useClinic.js";
-import { TopBar, Footer } from "../components/Chrome.jsx";
+import { useParams } from "react-router-dom";
+import { useQueueSocket } from "../useQueue.js";
+import { TopBar } from "../components/Chrome.jsx";
 
-export default function WaitingRoom() {
-  const { state, connected } = useClinic();
+export default function DisplayBoard() {
+  const { clinicId } = useParams();
+  const { state, connected } = useQueueSocket(clinicId);
 
   const serving = state?.serving;
   const waiting = state?.waiting ?? [];
   const tokensAhead = state?.tokens_ahead ?? 0;
   const avg = state?.avg_consultation_time ?? 10;
-  const estWait = tokensAhead * avg;
 
   return (
     <div className="page">
@@ -16,7 +17,7 @@ export default function WaitingRoom() {
 
       <div className="wrap">
         <div className="section-title" style={{ textAlign: "center" }}>
-          Waiting Room
+          {state?.clinic_name || "Waiting Room"}
         </div>
         <div className="h1" style={{ textAlign: "center", marginBottom: 24 }}>
           Please watch for <span>your token</span>
@@ -40,7 +41,7 @@ export default function WaitingRoom() {
             <div className="k">Tokens in queue</div>
           </div>
           <div className="info-card">
-            <div className="v">{estWait}</div>
+            <div className="v">{tokensAhead * avg}</div>
             <div className="k">Est. wait for last token (min)</div>
           </div>
         </div>
@@ -61,8 +62,6 @@ export default function WaitingRoom() {
           )}
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }

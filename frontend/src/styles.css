@@ -1267,6 +1267,129 @@ button {
   line-height: 1.65;
 }
 
+.ln-cta {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+
+.auth-page {
+  display: grid;
+  place-items: center;
+  padding: 40px 18px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 34px 30px;
+}
+
+.auth-brand {
+  justify-content: center;
+  margin-bottom: 22px;
+}
+.auth-brand .name {
+  color: var(--navy);
+  font-size: 24px;
+}
+.auth-brand .name span {
+  color: var(--teal);
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #eef6f7;
+  border-radius: 12px;
+  padding: 5px;
+  margin-bottom: 16px;
+}
+.auth-tabs button {
+  padding: 10px;
+  border-radius: 9px;
+  background: transparent;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--muted);
+}
+.auth-tabs button.on {
+  background: #fff;
+  color: var(--teal-deep);
+  box-shadow: var(--shadow-sm);
+}
+
+.role-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.role-toggle button {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: #f7fbfc;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+.role-toggle button.on {
+  border-color: var(--teal);
+  background: #e6f4f6;
+  color: var(--teal-deep);
+}
+
+.auth-error {
+  background: #fdecec;
+  color: #b3261e;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  margin-top: 14px;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.auth-foot {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.link {
+  background: none;
+  color: var(--teal-dark);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.clinic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 24px;
+}
+.clinic-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+}
+.clinic-row .nm {
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 17px;
+}
+.clinic-row .meta {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
 .footer {
   background: var(--navy);
   color: #cfe6ea;

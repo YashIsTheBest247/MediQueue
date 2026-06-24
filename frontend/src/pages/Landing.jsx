@@ -65,9 +65,20 @@ export default function Landing() {
             </a>
           ))}
         </nav>
-        <button className="btn btn-indigo" onClick={() => navigate("/reception")}>
-          Get started
-        </button>
+        <div className="ln-cta">
+          <button
+            className="btn btn-ghost"
+            onClick={() => navigate("/auth?mode=login")}
+          >
+            Log in
+          </button>
+          <button
+            className="btn btn-indigo"
+            onClick={() => navigate("/auth?mode=signup")}
+          >
+            Get started
+          </button>
+        </div>
       </header>
 
       <div className="wrap">
@@ -85,15 +96,15 @@ export default function Landing() {
             <div className="hero-ctas">
               <button
                 className="btn btn-primary"
-                onClick={() => navigate("/reception")}
+                onClick={() => navigate("/auth?mode=signup&role=clinic")}
               >
-                Reception Desk
+                For Clinics
               </button>
               <button
                 className="btn btn-ghost"
-                onClick={() => navigate("/waiting")}
+                onClick={() => navigate("/auth?mode=signup&role=patient")}
               >
-                Waiting Room
+                For Patients
               </button>
             </div>
           </div>

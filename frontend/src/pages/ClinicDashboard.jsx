@@ -1,48 +1,74 @@
 import { useState } from "react";
-import { useClinic } from "../useClinic.js";
-import { TopBar, Footer } from "../components/Chrome.jsx";
+import { Link } from "react-router-dom";
+import { useAuth } from "../auth.jsx";
+import { useQueueSocket } from "../useQueue.js";
+import { TopBar } from "../components/Chrome.jsx";
 
-export default function Receptionist() {
-  const { state, connected, addPatient, callNext, setAvgTime, reset } =
-    useClinic();
+export default function ClinicDashboard() {
+  const { account, authedFetch, logout } = useAuth();
+  const { state, connected } = useQueueSocket(account.id);
   const [name, setName] = useState("");
 
-  const avg = state?.avg_consultation_time ?? 10;
+  const avg = state?.avg_consultation_time ?? account.avg_time ?? 10;
   const serving = state?.serving;
   const waiting = state?.waiting ?? [];
   const stats = state?.stats ?? { waiting: 0, served: 0, total: 0 };
 
-  async function handleAdd(e) {
+  async function addPatient(e) {
     e.preventDefault();
-    await addPatient(name);
+    await authedFetch("/api/clinic/patients", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
     setName("");
   }
+
+  const callNext = () =>
+    authedFetch("/api/clinic/call-next", { method: "POST" });
+  const setAvg = (minutes) =>
+    authedFetch("/api/clinic/avg-time", {
+      method: "PUT",
+      body: JSON.stringify({ minutes }),
+    });
+  const reset = () => authedFetch("/api/clinic/reset", { method: "POST" });
 
   return (
     <div className="page">
       <TopBar
         connected={connected}
         right={
-          <button className="pill ghost" onClick={reset}>
-            Reset Day
-          </button>
+          <>
+            <Link
+              to={`/display/${account.id}`}
+              className="pill ghost"
+              target="_blank"
+            >
+              Open display
+            </Link>
+            <button className="pill ghost" onClick={reset}>
+              Reset Day
+            </button>
+            <button className="pill ghost" onClick={logout}>
+              Log out
+            </button>
+          </>
         }
       />
 
       <div className="wrap">
         <div className="grid-2">
           <div className="card card-pad">
-            <div className="section-title">Reception Desk</div>
+            <div className="section-title">{account.name}</div>
             <div className="h1">
-              Manage the <span>Queue</span>
+              Clinic <span>Dashboard</span>
             </div>
             <p className="sub">
-              Register walk-ins and call the next patient. Both the desk and the
-              waiting room update instantly.
+              Register walk-ins and call the next patient. Your waiting room and
+              every patient's phone update instantly.
             </p>
 
-            <form onSubmit={handleAdd} className="field">
-              <label>Patient name</label>
+            <form onSubmit={addPatient} className="field">
+              <label>Add walk-in patient</label>
               <div className="input-row">
                 <input
                   value={name}
@@ -58,14 +84,11 @@ export default function Receptionist() {
             <div className="field">
               <label>Average consultation time</label>
               <div className="stepper">
-                <button
-                  onClick={() => setAvgTime(Math.max(1, avg - 1))}
-                  aria-label="decrease"
-                >
+                <button onClick={() => setAvg(Math.max(1, avg - 1))} aria-label="decrease">
                   −
                 </button>
                 <div className="val">{avg}</div>
-                <button onClick={() => setAvgTime(avg + 1)} aria-label="increase">
+                <button onClick={() => setAvg(avg + 1)} aria-label="increase">
                   +
                 </button>
                 <span className="unit">minutes / patient</span>
@@ -104,13 +127,11 @@ export default function Receptionist() {
                   {serving ? `Token ${serving.token}` : "—"}
                 </div>
               </div>
-              <span className="pill solid">
-                {serving ? serving.name : "Idle"}
-              </span>
+              <span className="pill solid">{serving ? serving.name : "Idle"}</span>
             </div>
 
             <div className="section-title" style={{ marginTop: 8 }}>
-              Up Next ({waiting.length})
+              Patients in queue ({waiting.length})
             </div>
             <div className="queue">
               {serving && (
@@ -135,15 +156,13 @@ export default function Receptionist() {
               ))}
               {!serving && waiting.length === 0 && (
                 <div className="empty">
-                  No patients yet. Add a walk-in to start the queue.
+                  No patients yet. Add a walk-in or wait for patients to join.
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }
