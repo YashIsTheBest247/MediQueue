@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { API } from "../auth.jsx";
 import { TopBar } from "../components/Chrome.jsx";
 import { useT } from "../i18n.jsx";
+import ClinicsMap from "../components/ClinicsMap.jsx";
 
 export default function ExploreClinics() {
   const navigate = useNavigate();
   const { t } = useT();
   const [clinics, setClinics] = useState(null);
+  const [view, setView] = useState("list");
 
   useEffect(() => {
     let active = true;
@@ -28,12 +30,8 @@ export default function ExploreClinics() {
     };
   }, []);
 
-  function choose(c) {
-    localStorage.setItem(
-      "mq_preselect_clinic",
-      JSON.stringify({ id: c.id, name: c.name })
-    );
-    navigate("/auth?mode=login&role=patient");
+  function viewClinic(c) {
+    navigate(`/display/${c.id}`);
   }
 
   const sorted = (clinics || [])
@@ -55,6 +53,26 @@ export default function ExploreClinics() {
           )}
         </p>
 
+        <div className="view-toggle">
+          <button
+            className={view === "list" ? "on" : ""}
+            onClick={() => setView("list")}
+          >
+            {t("List")}
+          </button>
+          <button
+            className={view === "map" ? "on" : ""}
+            onClick={() => setView("map")}
+          >
+            {t("Map")}
+          </button>
+        </div>
+
+        {view === "map" && (
+          <ClinicsMap clinics={clinics || []} onView={viewClinic} t={t} />
+        )}
+
+        {view === "list" && (
         <div className="explore-grid">
           {clinics === null && <div className="empty">{t("Loading clinics…")}</div>}
           {clinics && clinics.length === 0 && (
@@ -105,14 +123,14 @@ export default function ExploreClinics() {
 
               <button
                 className="btn btn-primary ex-join"
-                disabled={!c.is_open}
-                onClick={() => choose(c)}
+                onClick={() => viewClinic(c)}
               >
-                {c.is_open ? t("Join this clinic") : t("Currently closed")}
+                {t("View live status")}
               </button>
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

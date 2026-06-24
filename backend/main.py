@@ -459,6 +459,7 @@ class AddPatientBody(BaseModel):
     priority: int = Field(default=0, ge=0, le=1)
     reason: str = Field(default="", max_length=160)
     department: str = Field(default="", max_length=60)
+    patient_ref: str = Field(default="", max_length=120)
 
 
 class AvgTimeBody(BaseModel):
@@ -474,6 +475,8 @@ class SettingsBody(BaseModel):
     departments: Optional[str] = Field(default=None, max_length=400)
     is_open: Optional[bool] = None
     hours: Optional[str] = Field(default=None, max_length=120)
+    lat: Optional[float] = Field(default=None, ge=-90, le=90)
+    lng: Optional[float] = Field(default=None, ge=-180, le=180)
 
 
 class CallBody(BaseModel):
@@ -625,16 +628,40 @@ def clinic_state(account=Depends(require_clinic)):
 
 @app.post("/api/clinic/patients")
 async def clinic_add_patient(body: AddPatientBody, account=Depends(require_clinic)):
-    name = body.name.strip() or f"Patient {account['next_token']}"
+    patient_id = None
+    linked_name = None
+    ref = body.patient_ref.strip()
+    if ref:
+        conn = get_conn()
+        if ref.isdigit():
+            row = conn.execute(
+                "SELECT id, name FROM accounts WHERE id=? AND role='patient'",
+                (int(ref),),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT id, name FROM accounts WHERE email=? AND role='patient'",
+                (ref.lower(),),
+            ).fetchone()
+        conn.close()
+        if row:
+            patient_id = row["id"]
+            linked_name = row["name"]
+    name = body.name.strip() or linked_name or f"Patient {account['next_token']}"
     number = add_token(
         account["id"],
         name,
+        patient_id=patient_id,
         priority=body.priority,
         reason=body.reason.strip() or None,
         department=body.department.strip() or None,
     )
     await broadcast_clinic(account["id"])
-    return {"added": {"token": number, "name": name}, "state": clinic_snapshot(account["id"])}
+    return {
+        "added": {"token": number, "name": name},
+        "linked": patient_id is not None,
+        "state": clinic_snapshot(account["id"]),
+    }
 
 
 @app.post("/api/clinic/call-next")
@@ -724,6 +751,11 @@ async def clinic_settings(body: SettingsBody, account=Depends(require_clinic)):
         conn.execute(
             "UPDATE accounts SET hours=? WHERE id=?", (body.hours.strip(), account["id"])
         )
+    if body.lat is not None and body.lng is not None:
+        conn.execute(
+            "UPDATE accounts SET lat=?, lng=? WHERE id=?",
+            (body.lat, body.lng, account["id"]),
+        )
     conn.close()
     await broadcast_clinic(account["id"])
     return {"state": clinic_snapshot(account["id"])}
@@ -799,7 +831,7 @@ def list_clinics():
 def clinics_overview():
     conn = get_conn()
     clinics = conn.execute(
-        "SELECT id, name, avg_time, paused, is_open, hours, room_count, departments "
+        "SELECT id, name, avg_time, paused, is_open, hours, room_count, departments, lat, lng "
         "FROM accounts WHERE role='clinic' ORDER BY name"
     ).fetchall()
     result = []
@@ -834,6 +866,8 @@ def clinics_overview():
                 "estimated_wait": est,
                 "paused": paused,
                 "is_open": manually_open and not paused,
+                "lat": c["lat"],
+                "lng": c["lng"],
             }
         )
     conn.close()
@@ -889,81 +923,6 @@ def patient_status(clinic_id: int, patient_id: int) -> dict:
     }
 
 
-@app.post("/api/clinics/{clinic_id}/join")
-async def patient_join(
-    clinic_id: int, body: JoinBody = JoinBody(), account=Depends(require_patient)
-):
-    conn = get_conn()
-    created = False
-    try:
-        conn.execute("BEGIN IMMEDIATE")
-        clinic = conn.execute(
-            "SELECT next_token FROM accounts WHERE id=? AND role='clinic'", (clinic_id,)
-        ).fetchone()
-        if not clinic:
-            conn.execute("ROLLBACK")
-            raise HTTPException(status_code=404, detail="Clinic not found")
-        existing = conn.execute(
-            "SELECT number FROM tokens WHERE clinic_id=? AND patient_id=? "
-            "AND status IN ('waiting','serving')",
-            (clinic_id, account["id"]),
-        ).fetchone()
-        if not existing:
-            number = clinic["next_token"]
-            conn.execute(
-                "INSERT INTO tokens (clinic_id, patient_id, name, number, status, reason, department, created_at) "
-                "VALUES (?,?,?,?, 'waiting', ?, ?, ?)",
-                (
-                    clinic_id,
-                    account["id"],
-                    account["name"],
-                    number,
-                    body.reason.strip() or None,
-                    body.department.strip() or None,
-                    now_iso(),
-                ),
-            )
-            conn.execute(
-                "UPDATE accounts SET next_token=? WHERE id=?", (number + 1, clinic_id)
-            )
-            created = True
-        conn.execute("COMMIT")
-    except HTTPException:
-        raise
-    except Exception:
-        conn.execute("ROLLBACK")
-        raise
-    finally:
-        conn.close()
-    if created:
-        await broadcast_clinic(clinic_id)
-    return patient_status(clinic_id, account["id"])
-
-
-@app.post("/api/clinics/{clinic_id}/book")
-async def patient_book(
-    clinic_id: int, body: BookBody, account=Depends(require_patient)
-):
-    conn = get_conn()
-    clinic = conn.execute(
-        "SELECT id FROM accounts WHERE id=? AND role='clinic'", (clinic_id,)
-    ).fetchone()
-    conn.close()
-    if not clinic:
-        raise HTTPException(status_code=404, detail="Clinic not found")
-    add_token(
-        clinic_id,
-        account["name"],
-        patient_id=account["id"],
-        reason=body.reason.strip() or None,
-        department=body.department.strip() or None,
-        status="booked",
-        appointment_at=body.appointment_at.strip(),
-    )
-    await broadcast_clinic(clinic_id)
-    return {"booked": True, "appointment_at": body.appointment_at}
-
-
 @app.get("/api/patient/queues")
 def patient_queues(account=Depends(require_patient)):
     conn = get_conn()
@@ -989,20 +948,6 @@ def patient_queues(account=Depends(require_patient)):
             for r in rows
         ]
     }
-
-
-@app.post("/api/clinics/{clinic_id}/leave")
-async def patient_leave(clinic_id: int, account=Depends(require_patient)):
-    conn = get_conn()
-    conn.execute(
-        "UPDATE tokens SET status='done' WHERE clinic_id=? AND patient_id=? "
-        "AND status IN ('waiting','serving')",
-        (clinic_id, account["id"]),
-    )
-    conn.commit()
-    conn.close()
-    await broadcast_clinic(clinic_id)
-    return patient_status(clinic_id, account["id"])
 
 
 @app.get("/api/clinics/{clinic_id}/me")

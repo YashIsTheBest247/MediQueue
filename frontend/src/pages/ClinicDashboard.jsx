@@ -14,12 +14,15 @@ export default function ClinicDashboard() {
   const [name, setName] = useState("");
   const [reason, setReason] = useState("");
   const [dept, setDept] = useState("");
+  const [patientRef, setPatientRef] = useState("");
+  const [addMsg, setAddMsg] = useState("");
   const [urgent, setUrgent] = useState(false);
   const [callDept, setCallDept] = useState("");
   const [deptText, setDeptText] = useState(null);
   const [hoursText, setHoursText] = useState(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [locMsg, setLocMsg] = useState("");
 
   const avg = state?.avg_consultation_time ?? account.avg_time ?? 10;
   const servings = state?.servings ?? [];
@@ -53,13 +56,26 @@ export default function ClinicDashboard() {
     e.preventDefault();
     if (busy || !name.trim()) return;
     await guarded(async () => {
-      await post("/api/clinic/patients", {
+      const r = await post("/api/clinic/patients", {
         name: name.trim(),
         priority: urgent ? 1 : 0,
         reason: reason.trim(),
         department: dept,
+        patient_ref: patientRef.trim(),
       });
+      const d = await r.json();
+      setAddMsg(
+        d.added
+          ? patientRef.trim()
+            ? d.linked
+              ? `Token ${d.added.token} added & linked to the patient's app`
+              : `Token ${d.added.token} added (no app account matched that code/email)`
+            : `Token ${d.added.token} added`
+          : ""
+      );
+      setTimeout(() => setAddMsg(""), 4000);
       setName("");
+      setPatientRef("");
       setReason("");
       setUrgent(false);
     });
@@ -94,6 +110,23 @@ export default function ClinicDashboard() {
     put("/api/clinic/settings", { hours: hoursText ?? "" }).then(() =>
       setHoursText(null)
     );
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setLocMsg("Geolocation not supported");
+      return;
+    }
+    setLocMsg("Locating…");
+    navigator.geolocation.getCurrentPosition(
+      (p) =>
+        put("/api/clinic/settings", {
+          lat: p.coords.latitude,
+          lng: p.coords.longitude,
+        }).then(() => setLocMsg("Location saved — you're on the map")),
+      () => setLocMsg("Could not get your location"),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   async function reset() {
     if (!window.confirm("Clear the whole queue and reset tokens to 1?")) return;
@@ -187,6 +220,13 @@ export default function ClinicDashboard() {
               )}
               <input
                 className="input"
+                value={patientRef}
+                onChange={(e) => setPatientRef(e.target.value)}
+                placeholder={t("Patient app code / email (to link their app)")}
+                style={{ marginTop: 8 }}
+              />
+              <input
+                className="input"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder={t("Reason / symptoms (optional)")}
@@ -200,6 +240,7 @@ export default function ClinicDashboard() {
                 />
                 {t("Mark as urgent (jumps to front)")}
               </label>
+              {addMsg && <div className="loc-msg">{addMsg}</div>}
             </form>
 
             <div className="settings-grid">
@@ -249,6 +290,14 @@ export default function ClinicDashboard() {
               </div>
             </div>
 
+            <div className="field">
+              <label>{t("Location (so patients find you on the map)")}</label>
+              <button className="btn btn-ghost" onClick={useMyLocation}>
+                {t("Use my current location")}
+              </button>
+              {locMsg && <div className="loc-msg">{locMsg}</div>}
+            </div>
+
             <div className="stat-row">
               <div className="stat">
                 <div className="num">{stats.waiting}</div>
@@ -266,13 +315,13 @@ export default function ClinicDashboard() {
 
             <div className="share-box">
               <div className="share-info">
-                <div className="section-title">{t("Patient join code")}</div>
+                <div className="section-title">{t("Live status QR")}</div>
                 <div className="share-code">#{clinicId}</div>
                 <p className="share-sub">
-                  {t("Patients scan the QR or open the link to join instantly.")}
+                  {t("Display this so patients can scan to watch this clinic's live queue.")}
                 </p>
                 <button className="btn btn-ghost share-btn" onClick={copyLink}>
-                  {copied ? t("Link copied!") : t("Copy join link")}
+                  {copied ? t("Link copied!") : t("Copy status link")}
                 </button>
               </div>
               <img className="share-qr" src={qrSrc} alt="Join queue QR code" />
