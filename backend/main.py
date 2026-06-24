@@ -100,50 +100,63 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
 
 def add_token(clinic_id: int, name: str, patient_id: Optional[int] = None) -> Optional[int]:
     conn = get_conn()
-    clinic = conn.execute(
-        "SELECT next_token FROM accounts WHERE id=? AND role='clinic'", (clinic_id,)
-    ).fetchone()
-    if not clinic:
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        clinic = conn.execute(
+            "SELECT next_token FROM accounts WHERE id=? AND role='clinic'", (clinic_id,)
+        ).fetchone()
+        if not clinic:
+            conn.execute("ROLLBACK")
+            return None
+        number = clinic["next_token"]
+        conn.execute(
+            "INSERT INTO tokens (clinic_id, patient_id, name, number, status, created_at) "
+            "VALUES (?,?,?,?, 'waiting', ?)",
+            (clinic_id, patient_id, name, number, now_iso()),
+        )
+        conn.execute(
+            "UPDATE accounts SET next_token=? WHERE id=?", (number + 1, clinic_id)
+        )
+        conn.execute("COMMIT")
+        return number
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
         conn.close()
-        return None
-    number = clinic["next_token"]
-    conn.execute(
-        "INSERT INTO tokens (clinic_id, patient_id, name, number, status, created_at) "
-        "VALUES (?,?,?,?, 'waiting', ?)",
-        (clinic_id, patient_id, name, number, now_iso()),
-    )
-    conn.execute(
-        "UPDATE accounts SET next_token=? WHERE id=?", (number + 1, clinic_id)
-    )
-    conn.commit()
-    conn.close()
-    return number
 
 
 def do_call_next(clinic_id: int) -> Optional[int]:
     conn = get_conn()
-    conn.execute(
-        "UPDATE tokens SET status='done' WHERE clinic_id=? AND status='serving'",
-        (clinic_id,),
-    )
-    nxt = conn.execute(
-        "SELECT * FROM tokens WHERE clinic_id=? AND status='waiting' ORDER BY number LIMIT 1",
-        (clinic_id,),
-    ).fetchone()
-    if nxt:
-        conn.execute("UPDATE tokens SET status='serving' WHERE id=?", (nxt["id"],))
+    try:
+        conn.execute("BEGIN IMMEDIATE")
         conn.execute(
-            "UPDATE accounts SET current_token=? WHERE id=?", (nxt["number"], clinic_id)
+            "UPDATE tokens SET status='done' WHERE clinic_id=? AND status='serving'",
+            (clinic_id,),
         )
-        called = nxt["number"]
-    else:
-        conn.execute(
-            "UPDATE accounts SET current_token=NULL WHERE id=?", (clinic_id,)
-        )
-        called = None
-    conn.commit()
-    conn.close()
-    return called
+        nxt = conn.execute(
+            "SELECT * FROM tokens WHERE clinic_id=? AND status='waiting' ORDER BY number LIMIT 1",
+            (clinic_id,),
+        ).fetchone()
+        if nxt:
+            conn.execute("UPDATE tokens SET status='serving' WHERE id=?", (nxt["id"],))
+            conn.execute(
+                "UPDATE accounts SET current_token=? WHERE id=?",
+                (nxt["number"], clinic_id),
+            )
+            called = nxt["number"]
+        else:
+            conn.execute(
+                "UPDATE accounts SET current_token=NULL WHERE id=?", (clinic_id,)
+            )
+            called = None
+        conn.execute("COMMIT")
+        return called
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
 
 
 class ConnectionManager:
@@ -303,13 +316,19 @@ async def clinic_avg_time(body: AvgTimeBody, account=Depends(require_clinic)):
 @app.post("/api/clinic/reset")
 async def clinic_reset(account=Depends(require_clinic)):
     conn = get_conn()
-    conn.execute("DELETE FROM tokens WHERE clinic_id=?", (account["id"],))
-    conn.execute(
-        "UPDATE accounts SET next_token=1, current_token=NULL WHERE id=?",
-        (account["id"],),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("DELETE FROM tokens WHERE clinic_id=?", (account["id"],))
+        conn.execute(
+            "UPDATE accounts SET next_token=1, current_token=NULL WHERE id=?",
+            (account["id"],),
+        )
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
     await broadcast_clinic(account["id"])
     return {"state": clinic_snapshot(account["id"])}
 
@@ -378,20 +397,40 @@ def patient_status(clinic_id: int, patient_id: int) -> dict:
 @app.post("/api/clinics/{clinic_id}/join")
 async def patient_join(clinic_id: int, account=Depends(require_patient)):
     conn = get_conn()
-    clinic = conn.execute(
-        "SELECT id FROM accounts WHERE id=? AND role='clinic'", (clinic_id,)
-    ).fetchone()
-    if not clinic:
+    created = False
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        clinic = conn.execute(
+            "SELECT next_token FROM accounts WHERE id=? AND role='clinic'", (clinic_id,)
+        ).fetchone()
+        if not clinic:
+            conn.execute("ROLLBACK")
+            raise HTTPException(status_code=404, detail="Clinic not found")
+        existing = conn.execute(
+            "SELECT number FROM tokens WHERE clinic_id=? AND patient_id=? "
+            "AND status IN ('waiting','serving')",
+            (clinic_id, account["id"]),
+        ).fetchone()
+        if not existing:
+            number = clinic["next_token"]
+            conn.execute(
+                "INSERT INTO tokens (clinic_id, patient_id, name, number, status, created_at) "
+                "VALUES (?,?,?,?, 'waiting', ?)",
+                (clinic_id, account["id"], account["name"], number, now_iso()),
+            )
+            conn.execute(
+                "UPDATE accounts SET next_token=? WHERE id=?", (number + 1, clinic_id)
+            )
+            created = True
+        conn.execute("COMMIT")
+    except HTTPException:
+        raise
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
         conn.close()
-        raise HTTPException(status_code=404, detail="Clinic not found")
-    existing = conn.execute(
-        "SELECT number FROM tokens WHERE clinic_id=? AND patient_id=? "
-        "AND status IN ('waiting','serving')",
-        (clinic_id, account["id"]),
-    ).fetchone()
-    conn.close()
-    if not existing:
-        add_token(clinic_id, account["name"], patient_id=account["id"])
+    if created:
         await broadcast_clinic(clinic_id)
     return patient_status(clinic_id, account["id"])
 

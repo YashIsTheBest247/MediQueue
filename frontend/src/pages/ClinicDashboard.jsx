@@ -8,6 +8,7 @@ export default function ClinicDashboard() {
   const { account, authedFetch, logout } = useAuth();
   const { state, connected } = useQueueSocket(account.id);
   const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const avg = state?.avg_consultation_time ?? account.avg_time ?? 10;
   const serving = state?.serving;
@@ -16,21 +17,44 @@ export default function ClinicDashboard() {
 
   async function addPatient(e) {
     e.preventDefault();
-    await authedFetch("/api/clinic/patients", {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    });
-    setName("");
+    if (busy || !name.trim()) return;
+    setBusy(true);
+    try {
+      await authedFetch("/api/clinic/patients", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      setName("");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  const callNext = () =>
-    authedFetch("/api/clinic/call-next", { method: "POST" });
+  async function callNext() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await authedFetch("/api/clinic/call-next", { method: "POST" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const setAvg = (minutes) =>
     authedFetch("/api/clinic/avg-time", {
       method: "PUT",
-      body: JSON.stringify({ minutes }),
+      body: JSON.stringify({ minutes: Math.min(180, Math.max(1, minutes)) }),
     });
-  const reset = () => authedFetch("/api/clinic/reset", { method: "POST" });
+
+  async function reset() {
+    if (
+      !window.confirm(
+        "Clear the whole queue and reset tokens to 1? This cannot be undone."
+      )
+    )
+      return;
+    await authedFetch("/api/clinic/reset", { method: "POST" });
+  }
 
   return (
     <div className="page">
@@ -75,7 +99,7 @@ export default function ClinicDashboard() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Riya Sharma"
                 />
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary" disabled={busy}>
                   + Add
                 </button>
               </div>
@@ -98,9 +122,9 @@ export default function ClinicDashboard() {
             <button
               className="btn btn-call"
               onClick={callNext}
-              disabled={waiting.length === 0 && !serving}
+              disabled={busy || (waiting.length === 0 && !serving)}
             >
-              Call Next Token
+              {busy ? "Working…" : "Call Next Token"}
             </button>
 
             <div className="stat-row">
