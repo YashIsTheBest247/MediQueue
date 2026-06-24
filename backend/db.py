@@ -79,6 +79,8 @@ def init_db():
     ensure("tokens", "room", "room INTEGER")
     ensure("tokens", "department", "department TEXT")
     ensure("tokens", "appointment_at", "appointment_at TEXT")
+    ensure("tokens", "notified", "notified INTEGER NOT NULL DEFAULT 0")
+    ensure("tokens", "served_at", "served_at TEXT")
     conn.commit()
     conn.close()
 

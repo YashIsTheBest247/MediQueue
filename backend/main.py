@@ -1,8 +1,10 @@
+import heapq
 import json
 import os
 import re
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import (
@@ -18,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import auth
+import mailer
 from db import get_conn, init_db, now_iso
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
@@ -63,9 +66,9 @@ def seed_demo():
     patient_id = cur.lastrowid
     ts = now_iso()
     conn.execute(
-        "INSERT INTO tokens (clinic_id, patient_id, name, number, status, room, created_at) "
-        "VALUES (?, NULL, 'Walk-in A', 1, 'serving', 1, ?)",
-        (clinic_id, ts),
+        "INSERT INTO tokens (clinic_id, patient_id, name, number, status, room, created_at, served_at) "
+        "VALUES (?, NULL, 'Walk-in A', 1, 'serving', 1, ?, ?)",
+        (clinic_id, ts, ts),
     )
     conn.execute(
         "INSERT INTO tokens (clinic_id, patient_id, name, number, status, created_at) "
@@ -115,6 +118,18 @@ def public_account(row) -> dict:
     }
 
 
+def consult_elapsed_min(served_at: Optional[str]) -> Optional[float]:
+    if not served_at:
+        return None
+    try:
+        start = datetime.fromisoformat(served_at)
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        return max(0.0, (datetime.now(timezone.utc) - start).total_seconds() / 60.0)
+    except Exception:
+        return None
+
+
 def clinic_snapshot(clinic_id: int) -> Optional[dict]:
     conn = get_conn()
     clinic = conn.execute(
@@ -144,11 +159,13 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
     conn.close()
 
     avg = clinic["avg_time"]
-    room_count = clinic["room_count"]
+    room_count = max(1, clinic["room_count"])
 
     servings = []
     for r in rows:
         if r["status"] == "serving":
+            elapsed = consult_elapsed_min(r["served_at"])
+            remaining = avg if elapsed is None else max(0.0, avg - elapsed)
             servings.append(
                 {
                     "token": r["number"],
@@ -158,17 +175,23 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
                     "priority": r["priority"],
                     "department": r["department"],
                     "room": r["room"],
+                    "remaining": round(remaining),
                 }
             )
     servings.sort(key=lambda s: s["room"] or 0)
     busy_rooms = len(servings)
+
+    free_at = [s["remaining"] for s in servings]
+    free_at.extend([0.0] * (room_count - busy_rooms))
+    heapq.heapify(free_at)
 
     waiting = []
     idx = 0
     for r in rows:
         if r["status"] == "waiting":
             idx += 1
-            est = (max(0, idx - room_count) + busy_rooms // max(1, room_count)) * avg
+            ready = heapq.heappop(free_at)
+            heapq.heappush(free_at, ready + avg)
             waiting.append(
                 {
                     "token": r["number"],
@@ -178,7 +201,7 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
                     "priority": r["priority"],
                     "department": r["department"],
                     "position": idx,
-                    "estimated_wait": est,
+                    "estimated_wait": round(ready),
                 }
             )
 
@@ -293,7 +316,8 @@ def _advance_room(
     nxt = _next_waiting(conn, clinic_id, department)
     if nxt:
         conn.execute(
-            "UPDATE tokens SET status='serving', room=? WHERE id=?", (room, nxt["id"])
+            "UPDATE tokens SET status='serving', room=?, served_at=? WHERE id=?",
+            (room, now_iso(), nxt["id"]),
         )
         return nxt["number"]
     return None
@@ -363,7 +387,8 @@ def do_call_specific(clinic_id: int, number: int, room: int) -> Optional[int]:
             (clinic_id, room),
         )
         conn.execute(
-            "UPDATE tokens SET status='serving', room=? WHERE id=?", (room, target["id"])
+            "UPDATE tokens SET status='serving', room=?, served_at=? WHERE id=?",
+            (room, now_iso(), target["id"]),
         )
         conn.execute("COMMIT")
         return number
@@ -458,6 +483,36 @@ async def broadcast_clinic(clinic_id: int):
     snap = clinic_snapshot(clinic_id)
     if snap:
         await manager.broadcast(clinic_id, snap)
+
+
+def notify_next_in_line(clinic_id: int) -> None:
+    if not mailer.is_configured():
+        return
+    conn = get_conn()
+    try:
+        clinic = conn.execute(
+            "SELECT name FROM accounts WHERE id=?", (clinic_id,)
+        ).fetchone()
+        if not clinic:
+            return
+        nxt = conn.execute(
+            "SELECT * FROM tokens WHERE clinic_id=? AND status='waiting' AND notified=0 "
+            "ORDER BY priority DESC, number ASC LIMIT 1",
+            (clinic_id,),
+        ).fetchone()
+        if not nxt or nxt["patient_id"] is None:
+            return
+        conn.execute("UPDATE tokens SET notified=1 WHERE id=?", (nxt["id"],))
+        patient = conn.execute(
+            "SELECT email FROM accounts WHERE id=? AND role='patient'",
+            (nxt["patient_id"],),
+        ).fetchone()
+        if not patient or not patient["email"]:
+            return
+        subject, text, html = mailer.you_are_next_email(clinic["name"], nxt["number"])
+        mailer.send_email(patient["email"], subject, text, html)
+    finally:
+        conn.close()
 
 
 def get_account(authorization: Optional[str] = Header(None)) -> dict:
@@ -732,6 +787,7 @@ async def clinic_call_next(body: CallBody = CallBody(), account=Depends(require_
         raise HTTPException(status_code=409, detail="Queue is paused")
     called = do_call_next(account["id"], body.room, body.department.strip() or None)
     await broadcast_clinic(account["id"])
+    notify_next_in_line(account["id"])
     return {"called": called, "state": clinic_snapshot(account["id"])}
 
 
@@ -739,6 +795,7 @@ async def clinic_call_next(body: CallBody = CallBody(), account=Depends(require_
 async def clinic_skip(body: CallBody = CallBody(), account=Depends(require_clinic)):
     called = do_skip(account["id"], body.room, body.department.strip() or None)
     await broadcast_clinic(account["id"])
+    notify_next_in_line(account["id"])
     return {"called": called, "state": clinic_snapshot(account["id"])}
 
 
@@ -759,6 +816,7 @@ async def clinic_call_specific(
     if called is None:
         raise HTTPException(status_code=404, detail="Token not found in the waiting list")
     await broadcast_clinic(account["id"])
+    notify_next_in_line(account["id"])
     return {"called": called, "state": clinic_snapshot(account["id"])}
 
 

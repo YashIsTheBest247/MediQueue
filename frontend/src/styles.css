@@ -1910,6 +1910,81 @@ button.pill.ghost:active {
   width: 100%;
 }
 
+.mq-select {
+  position: relative;
+  display: inline-block;
+}
+.mq-select.block {
+  display: block;
+  width: 100%;
+}
+.mq-select-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--teal-dark);
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mq-select-btn:hover {
+  border-color: var(--teal);
+  background: #f4fbfc;
+}
+.mq-select-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.7;
+  transition: transform 0.18s ease;
+  flex: none;
+}
+.mq-select-caret.up {
+  transform: rotate(180deg);
+}
+.mq-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 100%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 5px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mq-select-item {
+  text-align: left;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--navy);
+  font-family: inherit;
+}
+.mq-select-item:hover {
+  background: #eef8f9;
+}
+.mq-select-item.on {
+  background: var(--teal);
+  color: #fff;
+}
+
 .rooms-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -1944,8 +2019,18 @@ button.pill.ghost:active {
   font-size: 13px;
   color: var(--navy);
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   min-height: 18px;
+}
+.room-left {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0f8a78;
+  background: #dcf3ec;
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-bottom: 10px;
 }
 .room-act {
   display: flex;
@@ -2739,10 +2824,29 @@ button.pill.ghost:active {
 [data-theme="dark"] .stepper button,
 [data-theme="dark"] select.input,
 [data-theme="dark"] .dept-filter,
-[data-theme="dark"] .dept-select {
+[data-theme="dark"] .dept-select,
+[data-theme="dark"] .mq-select-btn {
   background: #101013;
   border-color: var(--line);
   color: var(--ink);
+}
+[data-theme="dark"] .mq-select-btn:hover {
+  background: #16181c;
+  border-color: var(--teal);
+}
+[data-theme="dark"] .mq-select-item {
+  color: var(--ink);
+}
+[data-theme="dark"] .mq-select-item:hover {
+  background: #1a1d22;
+}
+[data-theme="dark"] .mq-select-item.on {
+  background: var(--teal);
+  color: #06222a;
+}
+[data-theme="dark"] .room-left {
+  background: #14302a;
+  color: #57d6bd;
 }
 [data-theme="dark"] .input:focus,
 [data-theme="dark"] .input-row input:focus {

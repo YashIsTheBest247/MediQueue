@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { useQueueSocket } from "../useQueue.js";
 import { TopBar } from "../components/Chrome.jsx";
+import Select from "../components/Select.jsx";
 import { useT } from "../i18n.jsx";
 
 export default function ClinicDashboard() {
@@ -211,19 +212,18 @@ export default function ClinicDashboard() {
                 </button>
               </div>
               {departments.length > 0 && (
-                <select
-                  className="input"
-                  value={dept}
-                  onChange={(e) => setDept(e.target.value)}
-                  style={{ marginTop: 8 }}
-                >
-                  <option value="">{t("General (no department)")}</option>
-                  {departments.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                <div style={{ marginTop: 8 }}>
+                  <Select
+                    block
+                    value={dept}
+                    onChange={setDept}
+                    ariaLabel={t("Department")}
+                    options={[
+                      { value: "", label: t("General (no department)") },
+                      ...departments.map((d) => ({ value: d, label: d })),
+                    ]}
+                  />
+                </div>
               )}
               <input
                 className="input"
@@ -339,18 +339,16 @@ export default function ClinicDashboard() {
             <div className="queue-head">
               <div className="section-title">{t("Rooms · Now serving")}</div>
               {departments.length > 0 && (
-                <select
+                <Select
                   className="dept-filter"
                   value={callDept}
-                  onChange={(e) => setCallDept(e.target.value)}
-                >
-                  <option value="">{t("Call from: Any")}</option>
-                  {departments.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCallDept}
+                  ariaLabel={t("Call from: Any")}
+                  options={[
+                    { value: "", label: t("Call from: Any") },
+                    ...departments.map((d) => ({ value: d, label: d })),
+                  ]}
+                />
               )}
             </div>
 
@@ -364,6 +362,13 @@ export default function ClinicDashboard() {
                     </div>
                     <div className="room-token">{s ? s.token : "—"}</div>
                     <div className="room-who">{s ? s.name : t("Free")}</div>
+                    {s && typeof s.remaining === "number" && (
+                      <div className="room-left">
+                        {s.remaining > 0
+                          ? `~${s.remaining} ${t("min left")}`
+                          : t("wrapping up")}
+                      </div>
+                    )}
                     <div className="room-act">
                       <button
                         className="btn btn-call sm"
