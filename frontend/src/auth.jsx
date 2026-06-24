@@ -60,6 +60,21 @@ export function AuthProvider({ children }) {
     [save]
   );
 
+  const google = useCallback(
+    async (credential, role) => {
+      const r = await fetch(`${API}/api/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential, role }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || "Google sign-in failed");
+      save(d.token, d.account);
+      return d.account;
+    },
+    [save]
+  );
+
   const authedFetch = useCallback(
     (path, opts = {}) =>
       fetch(`${API}${path}`, {
@@ -75,7 +90,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthCtx.Provider
-      value={{ token, account, signup, login, logout, authedFetch }}
+      value={{ token, account, signup, login, google, logout, authedFetch }}
     >
       {children}
     </AuthCtx.Provider>

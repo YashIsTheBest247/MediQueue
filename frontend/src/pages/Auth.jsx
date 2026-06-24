@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { BackButton } from "../components/Chrome.jsx";
+import GoogleButton from "../components/GoogleButton.jsx";
 
 export default function Auth() {
   const { login, signup } = useAuth();
@@ -133,6 +134,15 @@ export default function Auth() {
               : "Create patient account"}
           </button>
         </form>
+
+        <GoogleButton
+          autoPrompt
+          getRole={() => role}
+          onSuccess={(account) =>
+            navigate(account.role === "clinic" ? "/clinic" : "/patient")
+          }
+          onError={(m) => setError(m)}
+        />
 
         <div className="auth-foot">
           {mode === "login" ? (

@@ -25,6 +25,7 @@ def init_db():
             name TEXT NOT NULL,
             email TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
+            provider TEXT NOT NULL DEFAULT 'local',
             avg_time INTEGER NOT NULL DEFAULT 10,
             current_token INTEGER,
             next_token INTEGER NOT NULL DEFAULT 1
@@ -41,6 +42,9 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_tokens_clinic ON tokens (clinic_id, status);
         """
     )
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(accounts)").fetchall()]
+    if "provider" not in cols:
+        conn.execute("ALTER TABLE accounts ADD COLUMN provider TEXT NOT NULL DEFAULT 'local'")
     conn.commit()
     conn.close()
 

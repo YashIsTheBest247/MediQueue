@@ -1,3 +1,8 @@
+import json
+import os
+import re
+import urllib.parse
+import urllib.request
 from typing import Optional
 
 from fastapi import (
@@ -15,7 +20,9 @@ from pydantic import BaseModel, Field
 import auth
 from db import get_conn, init_db, now_iso
 
-app = FastAPI(title="MediQueue API", version="2.0.0")
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+
+app = FastAPI(title="MediQueue API", version="2.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -231,6 +238,11 @@ class LoginBody(BaseModel):
     password: str
 
 
+class GoogleBody(BaseModel):
+    credential: str
+    role: Optional[str] = None
+
+
 class AddPatientBody(BaseModel):
     name: str = Field(default="", max_length=80)
 
@@ -244,9 +256,15 @@ def root():
     return {"app": "MediQueue", "status": "ok"}
 
 
+def valid_email(email: str) -> bool:
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email))
+
+
 @app.post("/api/auth/signup")
 def signup(body: SignupBody):
     email = body.email.strip().lower()
+    if not valid_email(email):
+        raise HTTPException(status_code=400, detail="Please enter a valid email address")
     conn = get_conn()
     try:
         cur = conn.execute(
@@ -273,6 +291,63 @@ def login(body: LoginBody):
     conn.close()
     if not row or not auth.verify_password(body.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = auth.create_token(row["id"], row["role"])
+    return {"token": token, "account": public_account(row)}
+
+
+@app.get("/api/auth/config")
+def auth_config():
+    return {
+        "google_enabled": bool(GOOGLE_CLIENT_ID),
+        "google_client_id": GOOGLE_CLIENT_ID,
+    }
+
+
+def verify_google_credential(credential: str) -> dict:
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google sign-in is not configured")
+    url = "https://oauth2.googleapis.com/tokeninfo?" + urllib.parse.urlencode(
+        {"id_token": credential}
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=10) as r:
+            data = json.loads(r.read())
+    except Exception:
+        raise HTTPException(status_code=401, detail="Could not verify Google token")
+    if data.get("aud") != GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=401, detail="Google token audience mismatch")
+    if data.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        raise HTTPException(status_code=401, detail="Invalid Google token issuer")
+    if str(data.get("email_verified")).lower() != "true":
+        raise HTTPException(status_code=401, detail="Google email is not verified")
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=401, detail="Google token missing email")
+    name = data.get("name") or data.get("given_name") or email.split("@")[0]
+    return {"email": email, "name": name}
+
+
+@app.post("/api/auth/google")
+def google_auth(body: GoogleBody):
+    info = verify_google_credential(body.credential)
+    email = info["email"]
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM accounts WHERE email=?", (email,)).fetchone()
+    if not row:
+        role = body.role if body.role in ("clinic", "patient") else "patient"
+        try:
+            cur = conn.execute(
+                "INSERT INTO accounts (role, name, email, password_hash, provider) "
+                "VALUES (?,?,?,?, 'google')",
+                (role, info["name"], email, "!google"),
+            )
+            row = conn.execute(
+                "SELECT * FROM accounts WHERE id=?", (cur.lastrowid,)
+            ).fetchone()
+        except Exception:
+            conn.close()
+            raise HTTPException(status_code=409, detail="Account creation failed")
+    conn.close()
     token = auth.create_token(row["id"], row["role"])
     return {"token": token, "account": public_account(row)}
 
