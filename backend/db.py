@@ -36,7 +36,9 @@ def init_db():
             is_open INTEGER NOT NULL DEFAULT 1,
             hours TEXT NOT NULL DEFAULT '',
             lat REAL,
-            lng REAL
+            lng REAL,
+            verified INTEGER NOT NULL DEFAULT 0,
+            license TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS tokens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,6 +72,8 @@ def init_db():
     ensure("accounts", "hours", "hours TEXT NOT NULL DEFAULT ''")
     ensure("accounts", "lat", "lat REAL")
     ensure("accounts", "lng", "lng REAL")
+    ensure("accounts", "verified", "verified INTEGER NOT NULL DEFAULT 0")
+    ensure("accounts", "license", "license TEXT NOT NULL DEFAULT ''")
     ensure("tokens", "priority", "priority INTEGER NOT NULL DEFAULT 0")
     ensure("tokens", "reason", "reason TEXT")
     ensure("tokens", "room", "room INTEGER")

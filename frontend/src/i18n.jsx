@@ -1,9 +1,16 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 
 export const LANGS = [
-  { code: "en", label: "EN" },
-  { code: "hi", label: "हिं" },
-  { code: "ta", label: "த" },
+  { code: "en", label: "EN", name: "English" },
+  { code: "hi", label: "हिं", name: "हिन्दी" },
+  { code: "ta", label: "த", name: "தமிழ்" },
 ];
 
 const DICT = {
@@ -21,6 +28,9 @@ const DICT = {
     "Where Healing": "जहाँ इलाज",
     "Feels Like": "लगता है जैसे",
     "Home": "घर",
+    "Modern Queues": "आधुनिक कतारें",
+    For: "के लिए",
+    "Modern Clinics": "आधुनिक क्लीनिक",
     Patient: "मरीज़",
     "Join a": "शामिल हों",
     "clinic queue": "क्लीनिक कतार में",
@@ -192,6 +202,9 @@ const DICT = {
     "Where Healing": "குணமாதல்",
     "Feels Like": "உணர்வது",
     "Home": "வீடு",
+    "Modern Queues": "நவீன வரிசைகள்",
+    For: "க்கான",
+    "Modern Clinics": "நவீன மருத்துவமனைகள்",
     Patient: "நோயாளி",
     "Join a": "சேரு",
     "clinic queue": "மருத்துவ வரிசையில்",
@@ -374,17 +387,64 @@ export function useT() {
 
 export function LanguageSwitcher() {
   const { lang, setLang } = useT();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function onDoc(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const current = LANGS.find((l) => l.code === lang) || LANGS[0];
+
   return (
-    <div className="lang-switch">
-      {LANGS.map((l) => (
-        <button
-          key={l.code}
-          className={lang === l.code ? "on" : ""}
-          onClick={() => setLang(l.code)}
+    <div className="lang-dd" ref={ref}>
+      <button
+        className="lang-dd-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Choose language"
+      >
+        <svg
+          className="lang-globe"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          {l.label}
-        </button>
-      ))}
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18" />
+          <path d="M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18" />
+        </svg>
+        <span>{current.label}</span>
+        <span className={"lang-caret" + (open ? " up" : "")} />
+      </button>
+
+      {open && (
+        <div className="lang-dd-menu" role="listbox">
+          {LANGS.map((l) => (
+            <button
+              key={l.code}
+              role="option"
+              aria-selected={l.code === lang}
+              className={"lang-dd-item" + (l.code === lang ? " on" : "")}
+              onClick={() => {
+                setLang(l.code);
+                setOpen(false);
+              }}
+            >
+              <span className="ld-label">{l.label}</span>
+              <span className="ld-name">{l.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

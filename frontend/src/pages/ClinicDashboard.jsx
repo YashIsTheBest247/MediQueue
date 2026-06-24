@@ -176,6 +176,13 @@ export default function ClinicDashboard() {
       />
 
       <div className="wrap">
+        {state && state.verified === false && (
+          <div className="verify-banner">
+            {t(
+              "Your clinic is Pending verification. Patients see a 'Pending' badge until an admin reviews you."
+            )}
+          </div>
+        )}
         {paused && (
           <div className="pause-banner">
             {t("Queue paused — patients can still join, calling is on hold.")}

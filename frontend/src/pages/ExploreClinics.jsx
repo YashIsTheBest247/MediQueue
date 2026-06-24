@@ -34,6 +34,14 @@ export default function ExploreClinics() {
     navigate(`/display/${c.id}`);
   }
 
+  function registerClinic(poi) {
+    localStorage.setItem(
+      "mq_register_prefill",
+      JSON.stringify({ name: poi.name, lat: poi.lat, lng: poi.lng })
+    );
+    navigate("/auth?mode=signup&role=clinic");
+  }
+
   const sorted = (clinics || [])
     .slice()
     .sort((a, b) => a.estimated_wait - b.estimated_wait);
@@ -69,7 +77,12 @@ export default function ExploreClinics() {
         </div>
 
         {view === "map" && (
-          <ClinicsMap clinics={clinics || []} onView={viewClinic} t={t} />
+          <ClinicsMap
+            clinics={clinics || []}
+            onView={viewClinic}
+            onRegister={registerClinic}
+            t={t}
+          />
         )}
 
         {view === "list" && (
@@ -82,7 +95,14 @@ export default function ExploreClinics() {
             <div key={c.id} className="explore-card card">
               <div className="ex-head">
                 <div className="ex-namewrap">
-                  <div className="ex-name">{c.name}</div>
+                  <div className="ex-name">
+                    {c.name}
+                    <span
+                      className={"verify-pill " + (c.verified ? "ok" : "pending")}
+                    >
+                      {c.verified ? t("Verified") : t("Pending")}
+                    </span>
+                  </div>
                   <div className="ex-spec">
                     {c.departments?.length > 0
                       ? c.departments.join(" · ")

@@ -31,17 +31,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signup = useCallback(
-    async (role, name, email, password, clinicCode) => {
+    async (role, name, email, password, extra = {}) => {
       const r = await fetch(`${API}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role,
-          name,
-          email,
-          password,
-          clinic_code: clinicCode ? Number(clinicCode) : null,
-        }),
+        body: JSON.stringify({ role, name, email, password, ...extra }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || "Signup failed");
@@ -67,15 +61,14 @@ export function AuthProvider({ children }) {
   );
 
   const google = useCallback(
-    async (credential, role) => {
+    async (credential) => {
       const r = await fetch(`${API}/api/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential, role }),
+        body: JSON.stringify({ credential }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || "Google sign-in failed");
-      if (d.needs_role) return { needsRole: true, email: d.email, name: d.name };
       save(d.token, d.account);
       return d.account;
     },

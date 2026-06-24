@@ -31,10 +31,20 @@ function Recenter({ center }) {
   return null;
 }
 
-export default function ClinicsMap({ clinics, onView, t }) {
+function FlyTo({ target }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo(target, 16, { duration: 0.8 });
+  }, [target, map]);
+  return null;
+}
+
+export default function ClinicsMap({ clinics, onView, onRegister, t }) {
   const [pos, setPos] = useState(null);
   const [geoErr, setGeoErr] = useState("");
   const [pois, setPois] = useState([]);
+  const [search, setSearch] = useState("");
+  const [focus, setFocus] = useState(null);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -94,17 +104,64 @@ export default function ClinicsMap({ clinics, onView, t }) {
     [clinics]
   );
 
+  const results = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return [];
+    const fromClinics = registered.map((c) => ({
+      key: "r" + c.id,
+      name: c.name,
+      lat: c.lat,
+      lng: c.lng,
+      tag: c.verified ? t("Verified") : t("Pending"),
+    }));
+    const fromPois = pois.map((p) => ({
+      key: "p" + p.id,
+      name: p.name,
+      lat: p.lat,
+      lng: p.lng,
+      tag: t("Nearby"),
+    }));
+    return [...fromClinics, ...fromPois]
+      .filter((x) => x.name.toLowerCase().includes(term))
+      .slice(0, 8);
+  }, [search, registered, pois, t]);
+
   if (geoErr && !pos) return <div className="map-msg">{geoErr}</div>;
   if (!pos) return <div className="map-msg">{t("Locating you…")}</div>;
 
   return (
     <div className="map-wrap">
+      <div className="map-search">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("Search a clinic or hospital…")}
+        />
+        {results.length > 0 && (
+          <div className="map-results">
+            {results.map((r) => (
+              <button
+                key={r.key}
+                onClick={() => {
+                  setFocus([r.lat, r.lng]);
+                  setSearch("");
+                }}
+              >
+                <span>{r.name}</span>
+                <small>{r.tag}</small>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <MapContainer center={pos} zoom={13} className="leaflet-map" scrollWheelZoom>
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
         <Recenter center={pos} />
+        <FlyTo target={focus} />
 
         <Marker position={pos} icon={userIcon}>
           <Popup>{t("You are here")}</Popup>
@@ -115,7 +172,9 @@ export default function ClinicsMap({ clinics, onView, t }) {
             <Popup>
               <div className="map-pop">
                 <strong>{c.name}</strong>
-                <span className="mp-badge ok">{t("Registered")}</span>
+                <span className={"mp-badge " + (c.verified ? "ok" : "pending")}>
+                  {c.verified ? t("Verified") : t("Pending verification")}
+                </span>
                 <div className="mp-stats">
                   <span>
                     {t("Now serving")}: {c.current_token ?? "—"}
@@ -147,6 +206,12 @@ export default function ClinicsMap({ clinics, onView, t }) {
                 <div className="mp-stats">
                   <span>{t("No live queue — not registered yet.")}</span>
                 </div>
+                <button
+                  className="btn btn-primary mp-join"
+                  onClick={() => onRegister(p)}
+                >
+                  {t("Register this clinic")}
+                </button>
               </div>
             </Popup>
           </Marker>

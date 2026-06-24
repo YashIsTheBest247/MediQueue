@@ -21,6 +21,7 @@ import auth
 from db import get_conn, init_db, now_iso
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+ADMIN_KEY = os.environ.get("MEDIQUEUE_ADMIN_KEY", "mediqueue-admin")
 
 app = FastAPI(title="MediQueue API", version="2.1.0")
 
@@ -34,6 +35,61 @@ app.add_middleware(
 
 
 init_db()
+
+DEMO_CLINIC_EMAIL = "demo.clinic@mediqueue.app"
+DEMO_PATIENT_EMAIL = "demo.patient@mediqueue.app"
+DEMO_PASSWORD = "demo1234"
+
+
+def seed_demo():
+    conn = get_conn()
+    exists = conn.execute(
+        "SELECT id FROM accounts WHERE email=?", (DEMO_CLINIC_EMAIL,)
+    ).fetchone()
+    if exists:
+        conn.close()
+        return
+    pw = auth.hash_password(DEMO_PASSWORD)
+    cur = conn.execute(
+        "INSERT INTO accounts (role, name, email, password_hash, verified, license, lat, lng, departments, next_token) "
+        "VALUES ('clinic','Demo Clinic',?,?,1,'DEMO-0001',19.076,72.8777,'GP,Dental',4)",
+        (DEMO_CLINIC_EMAIL, pw),
+    )
+    clinic_id = cur.lastrowid
+    cur = conn.execute(
+        "INSERT INTO accounts (role, name, email, password_hash) VALUES ('patient','Demo Patient',?,?)",
+        (DEMO_PATIENT_EMAIL, pw),
+    )
+    patient_id = cur.lastrowid
+    ts = now_iso()
+    conn.execute(
+        "INSERT INTO tokens (clinic_id, patient_id, name, number, status, room, created_at) "
+        "VALUES (?, NULL, 'Walk-in A', 1, 'serving', 1, ?)",
+        (clinic_id, ts),
+    )
+    conn.execute(
+        "INSERT INTO tokens (clinic_id, patient_id, name, number, status, created_at) "
+        "VALUES (?, NULL, 'Walk-in B', 2, 'waiting', ?)",
+        (clinic_id, ts),
+    )
+    conn.execute(
+        "INSERT INTO tokens (clinic_id, patient_id, name, number, status, created_at) "
+        "VALUES (?, ?, 'Demo Patient', 3, 'waiting', ?)",
+        (clinic_id, patient_id, ts),
+    )
+    conn.commit()
+    conn.close()
+
+
+seed_demo()
+
+
+@app.get("/api/auth/demo")
+def auth_demo():
+    return {
+        "clinic": {"email": DEMO_CLINIC_EMAIL, "password": DEMO_PASSWORD},
+        "patient": {"email": DEMO_PATIENT_EMAIL, "password": DEMO_PASSWORD},
+    }
 
 
 def parse_departments(value) -> list:
@@ -55,6 +111,7 @@ def public_account(row) -> dict:
         "departments": parse_departments(row["departments"] if "departments" in keys else ""),
         "is_open": bool(row["is_open"]) if "is_open" in keys else True,
         "hours": row["hours"] if "hours" in keys else "",
+        "verified": bool(row["verified"]) if "verified" in keys else False,
     }
 
 
@@ -131,6 +188,7 @@ def clinic_snapshot(clinic_id: int) -> Optional[dict]:
         "clinic_name": clinic["name"],
         "paused": bool(clinic["paused"]),
         "is_open": bool(clinic["is_open"]),
+        "verified": bool(clinic["verified"]),
         "hours": clinic["hours"],
         "room_count": room_count,
         "departments": parse_departments(clinic["departments"]),
@@ -442,6 +500,9 @@ class SignupBody(BaseModel):
     email: str = Field(min_length=3, max_length=120)
     password: str = Field(min_length=4, max_length=128)
     clinic_code: Optional[int] = None
+    license: str = Field(default="", max_length=80)
+    lat: Optional[float] = Field(default=None, ge=-90, le=90)
+    lng: Optional[float] = Field(default=None, ge=-180, le=180)
 
 
 class LoginBody(BaseModel):
@@ -524,13 +585,17 @@ def signup(body: SignupBody):
     conn = get_conn()
     try:
         cur = conn.execute(
-            "INSERT INTO accounts (role, name, email, password_hash, clinic_id) VALUES (?,?,?,?,?)",
+            "INSERT INTO accounts (role, name, email, password_hash, clinic_id, license, lat, lng) "
+            "VALUES (?,?,?,?,?,?,?,?)",
             (
                 body.role,
                 body.name.strip(),
                 email,
                 auth.hash_password(body.password),
                 clinic_id,
+                body.license.strip() if body.role == "clinic" else "",
+                body.lat if body.role == "clinic" else None,
+                body.lng if body.role == "clinic" else None,
             ),
         )
         conn.commit()
@@ -596,14 +661,11 @@ def google_auth(body: GoogleBody):
     conn = get_conn()
     row = conn.execute("SELECT * FROM accounts WHERE email=?", (email,)).fetchone()
     if not row:
-        if body.role not in ("clinic", "patient"):
-            conn.close()
-            return {"needs_role": True, "email": email, "name": info["name"]}
         try:
             cur = conn.execute(
                 "INSERT INTO accounts (role, name, email, password_hash, provider) "
-                "VALUES (?,?,?,?, 'google')",
-                (body.role, info["name"], email, "!google"),
+                "VALUES ('patient',?,?,?, 'google')",
+                (info["name"], email, "!google"),
             )
             row = conn.execute(
                 "SELECT * FROM accounts WHERE id=?", (cur.lastrowid,)
@@ -831,7 +893,7 @@ def list_clinics():
 def clinics_overview():
     conn = get_conn()
     clinics = conn.execute(
-        "SELECT id, name, avg_time, paused, is_open, hours, room_count, departments, lat, lng "
+        "SELECT id, name, avg_time, paused, is_open, hours, room_count, departments, lat, lng, verified "
         "FROM accounts WHERE role='clinic' ORDER BY name"
     ).fetchall()
     result = []
@@ -866,12 +928,42 @@ def clinics_overview():
                 "estimated_wait": est,
                 "paused": paused,
                 "is_open": manually_open and not paused,
+                "verified": bool(c["verified"]),
                 "lat": c["lat"],
                 "lng": c["lng"],
             }
         )
     conn.close()
     return {"clinics": result}
+
+
+def require_admin(x_admin_key: Optional[str] = Header(None)):
+    if not x_admin_key or x_admin_key != ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Admin key required")
+    return True
+
+
+@app.get("/api/admin/pending")
+def admin_pending(_=Depends(require_admin)):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, name, email, license, lat, lng FROM accounts "
+        "WHERE role='clinic' AND verified=0 ORDER BY id DESC"
+    ).fetchall()
+    conn.close()
+    return {"pending": [dict(r) for r in rows]}
+
+
+@app.post("/api/admin/clinics/{clinic_id}/verify")
+def admin_verify(clinic_id: int, _=Depends(require_admin)):
+    conn = get_conn()
+    cur = conn.execute(
+        "UPDATE accounts SET verified=1 WHERE id=? AND role='clinic'", (clinic_id,)
+    )
+    conn.close()
+    if cur.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Clinic not found")
+    return {"verified": True, "clinic_id": clinic_id}
 
 
 @app.get("/api/clinics/{clinic_id}/state")

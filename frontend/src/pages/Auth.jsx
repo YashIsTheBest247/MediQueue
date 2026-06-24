@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../auth.jsx";
+import { useAuth, API } from "../auth.jsx";
 import { BackButton } from "../components/Chrome.jsx";
 import GoogleButton from "../components/GoogleButton.jsx";
 import BrandMark from "../components/BrandMark.jsx";
@@ -21,9 +21,26 @@ export default function Auth() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [license, setLicense] = useState("");
+  const [regLoc, setRegLoc] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [googlePending, setGooglePending] = useState(null);
+
+  useEffect(() => {
+    const pre = localStorage.getItem("mq_register_prefill");
+    if (!pre) return;
+    localStorage.removeItem("mq_register_prefill");
+    try {
+      const p = JSON.parse(pre);
+      setMode("signup");
+      setRole("clinic");
+      if (p.name) setName(p.name);
+      if (typeof p.lat === "number" && typeof p.lng === "number")
+        setRegLoc({ lat: p.lat, lng: p.lng });
+    } catch {
+      void 0;
+    }
+  }, []);
 
   function go(account) {
     navigate(account.role === "patient" ? "/patient" : "/clinic");
@@ -34,10 +51,14 @@ export default function Auth() {
     setError("");
     setBusy(true);
     try {
+      const extra =
+        mode === "signup" && role === "clinic"
+          ? { license, ...(regLoc || {}) }
+          : {};
       const account =
         mode === "login"
           ? await login(email, password)
-          : await signup(role, name, email, password);
+          : await signup(role, name, email, password, extra);
       go(account);
     } catch (err) {
       setError(err.message);
@@ -50,9 +71,7 @@ export default function Auth() {
     setError("");
     setBusy(true);
     try {
-      const res = await google(credential);
-      if (res.needsRole) setGooglePending({ credential, name: res.name });
-      else go(res);
+      go(await google(credential));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -60,14 +79,15 @@ export default function Auth() {
     }
   }
 
-  async function pickGoogleRole(chosen) {
+  async function tryDemo(which) {
+    setError("");
     setBusy(true);
     try {
-      const account = await google(googlePending.credential, chosen);
-      go(account);
+      const cfg = await fetch(`${API}/api/auth/demo`).then((r) => r.json());
+      const creds = cfg[which];
+      go(await login(creds.email, creds.password));
     } catch (err) {
-      setError(err.message);
-      setGooglePending(null);
+      setError(t("Demo accounts are not available."));
     } finally {
       setBusy(false);
     }
@@ -75,6 +95,17 @@ export default function Auth() {
 
   return (
     <div className="page auth-page">
+      <video
+        className="auth-bg-video"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        src="/intro.mp4"
+      />
+      <div className="auth-bg-overlay" />
+
       <div className="auth-card card">
         <div className="auth-top">
           <BackButton />
@@ -135,6 +166,28 @@ export default function Auth() {
               />
             </div>
           )}
+          {mode === "signup" && role === "clinic" && (
+            <div className="field">
+              <label>{t("Clinic registration / license number")}</label>
+              <input
+                className="input"
+                value={license}
+                onChange={(e) => setLicense(e.target.value)}
+                placeholder="e.g. MH-12345"
+                required
+              />
+              {regLoc && (
+                <div className="loc-msg">
+                  {t("Location captured from the map ✓")}
+                </div>
+              )}
+              <div className="verify-note">
+                {t(
+                  "New clinics start as Pending and are marked Verified after review."
+                )}
+              </div>
+            </div>
+          )}
           <div className="field">
             <label>{t("Email")}</label>
             <input
@@ -172,7 +225,29 @@ export default function Auth() {
           </button>
         </form>
 
-        <GoogleButton autoPrompt onCredential={handleGoogle} />
+        {(mode === "login" || role === "patient") && (
+          <GoogleButton autoPrompt onCredential={handleGoogle} />
+        )}
+
+        <div className="demo-box">
+          <div className="demo-head">{t("Just exploring? Try a demo account")}</div>
+          <div className="demo-btns">
+            <button
+              className="btn btn-ghost"
+              disabled={busy}
+              onClick={() => tryDemo("clinic")}
+            >
+              {t("Demo Clinic")}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={busy}
+              onClick={() => tryDemo("patient")}
+            >
+              {t("Demo Patient")}
+            </button>
+          </div>
+        </div>
 
         <div className="auth-foot">
           {mode === "login" ? (
@@ -192,41 +267,6 @@ export default function Auth() {
           )}
         </div>
       </div>
-
-      {googlePending && (
-        <div className="role-modal">
-          <div className="role-modal-card card">
-            <div className="section-title">Almost there</div>
-            <h2 className="h1" style={{ fontSize: 23 }}>
-              How will you use <span>MediQueue?</span>
-            </h2>
-            <p className="sub">
-              Hi {googlePending.name}, pick your account type to finish signing up.
-            </p>
-            <div className="role-modal-grid">
-              <button
-                className="role-choice"
-                disabled={busy}
-                onClick={() => pickGoogleRole("clinic")}
-              >
-                <strong>I'm a Clinic</strong>
-                <span>Run the queue & dashboard</span>
-              </button>
-              <button
-                className="role-choice"
-                disabled={busy}
-                onClick={() => pickGoogleRole("patient")}
-              >
-                <strong>I'm a Patient</strong>
-                <span>Join a queue & track my token</span>
-              </button>
-            </div>
-            <button className="link" onClick={() => setGooglePending(null)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

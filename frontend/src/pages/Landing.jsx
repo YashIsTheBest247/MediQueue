@@ -133,8 +133,8 @@ export default function Landing() {
         <section className="hero-split">
           <div className="hero-copy">
             <h1 className="hero-title">
-              {t("Where Healing")} <br />
-              {t("Feels Like")} <span>{t("Home")}</span>
+              {t("Modern Queues")} <br />
+              {t("For")} <span>{t("Modern Clinics")}</span>
             </h1>
             <p className="hero-lead">
               {t(
