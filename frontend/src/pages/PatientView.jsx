@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API } from "../auth.jsx";
+import { wakeFetch } from "../backend.js";
 import { useQueueSocket } from "../useQueue.js";
 import { TopBar } from "../components/Chrome.jsx";
 import { chime, notify, requestNotifyPermission } from "../notify.js";
@@ -46,7 +47,7 @@ export default function PatientView() {
       try {
         const [q, c] = await Promise.all([
           authedFetch("/api/patient/queues").then((r) => r.json()),
-          fetch(`${API}/api/clinics/overview`).then((r) => r.json()),
+          wakeFetch(`${API}/api/clinics/overview`).then((r) => r.json()),
         ]);
         if (on) {
           setQueues(q.queues || []);

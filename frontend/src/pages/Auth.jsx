@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth, API } from "../auth.jsx";
+import { wakeFetch } from "../backend.js";
 import { BackButton } from "../components/Chrome.jsx";
 import GoogleButton from "../components/GoogleButton.jsx";
 import BrandMark from "../components/BrandMark.jsx";
@@ -99,7 +100,7 @@ export default function Auth() {
     setError("");
     setBusy(true);
     try {
-      const cfg = await fetch(`${API}/api/auth/demo`).then((r) => r.json());
+      const cfg = await wakeFetch(`${API}/api/auth/demo`).then((r) => r.json());
       const creds = cfg[which];
       go(await login(creds.email, creds.password));
     } catch (err) {

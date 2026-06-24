@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from "./auth.jsx";
 import { LanguageProvider, useT } from "./i18n.jsx";
 import Landing from "./pages/Landing.jsx";
 import Auth from "./pages/Auth.jsx";
+import WakeOverlay from "./components/WakeOverlay.jsx";
 import "./styles.css";
 
 const ClinicDashboard = lazy(() => import("./pages/ClinicDashboard.jsx"));
@@ -105,6 +106,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <BrowserRouter>
             <AnimatedRoutes />
           </BrowserRouter>
+          <WakeOverlay />
         </AuthProvider>
       </LanguageProvider>
     </MotionConfig>

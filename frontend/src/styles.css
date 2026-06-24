@@ -67,6 +67,100 @@ a,
   }
 }
 
+.wake-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(238, 245, 247, 0.9);
+  animation: wake-fade 0.25s ease;
+}
+[data-theme="dark"] .wake-overlay {
+  background: rgba(11, 12, 14, 0.92);
+}
+.wake-card {
+  text-align: center;
+  max-width: 360px;
+  width: 100%;
+}
+.wake-logo {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  margin: 0 auto 20px;
+  display: grid;
+  place-items: center;
+}
+.wake-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid rgba(18, 124, 138, 0.16);
+  border-top-color: var(--teal);
+  animation: route-spin 0.9s linear infinite;
+}
+.wake-mark {
+  width: 40px;
+  height: 40px;
+  color: var(--teal);
+  display: grid;
+  place-items: center;
+}
+.wake-mark svg {
+  width: 100%;
+  height: 100%;
+}
+.wake-msg {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--teal-dark);
+  min-height: 24px;
+  animation: wake-fade 0.4s ease;
+}
+[data-theme="dark"] .wake-msg {
+  color: #67d2de;
+}
+.wake-sub {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.wake-bar {
+  margin: 20px auto 0;
+  max-width: 230px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(18, 124, 138, 0.14);
+  overflow: hidden;
+}
+.wake-bar span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--teal), var(--teal-deep));
+  animation: wake-slide 1.3s ease-in-out infinite;
+}
+@keyframes wake-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
+}
+@keyframes wake-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 #solution,
 #why,
 #problem {

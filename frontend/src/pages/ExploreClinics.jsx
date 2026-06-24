@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../auth.jsx";
+import { wakeFetch } from "../backend.js";
 import { TopBar } from "../components/Chrome.jsx";
 import { useT } from "../i18n.jsx";
 import ClinicsMap from "../components/ClinicsMap.jsx";
@@ -15,7 +16,7 @@ export default function ExploreClinics() {
     let active = true;
     async function load() {
       try {
-        const r = await fetch(`${API}/api/clinics/overview`);
+        const r = await wakeFetch(`${API}/api/clinics/overview`);
         const d = await r.json();
         if (active) setClinics(d.clinics || []);
       } catch {

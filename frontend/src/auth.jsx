@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
+import { wakeFetch } from "./backend.js";
 
 export const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export const WS_BASE =
@@ -16,6 +23,10 @@ export function AuthProvider({ children }) {
     }
   });
 
+  useEffect(() => {
+    fetch(`${API}/api/health`).catch(() => {});
+  }, []);
+
   const save = useCallback((t, a) => {
     setToken(t);
     setAccount(a);
@@ -32,7 +43,7 @@ export function AuthProvider({ children }) {
 
   const signup = useCallback(
     async (role, name, email, password, extra = {}) => {
-      const r = await fetch(`${API}/api/auth/signup`, {
+      const r = await wakeFetch(`${API}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role, name, email, password, ...extra }),
@@ -47,7 +58,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(
     async (email, password) => {
-      const r = await fetch(`${API}/api/auth/login`, {
+      const r = await wakeFetch(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -62,7 +73,7 @@ export function AuthProvider({ children }) {
 
   const google = useCallback(
     async (credential) => {
-      const r = await fetch(`${API}/api/auth/google`, {
+      const r = await wakeFetch(`${API}/api/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential }),
@@ -77,7 +88,7 @@ export function AuthProvider({ children }) {
 
   const authedFetch = useCallback(
     (path, opts = {}) =>
-      fetch(`${API}${path}`, {
+      wakeFetch(`${API}${path}`, {
         ...opts,
         headers: {
           "Content-Type": "application/json",

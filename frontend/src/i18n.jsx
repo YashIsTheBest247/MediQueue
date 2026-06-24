@@ -158,6 +158,13 @@ const DICT = {
     "Locating…": "ढूँढ रहे हैं…",
     "Your patient code": "आपका मरीज़ कोड",
     "Copy code": "कोड कॉपी करें",
+    "Connecting to MediQueue…": "MediQueue से कनेक्ट हो रहे हैं…",
+    "Waking up the server…": "सर्वर जाग रहा है…",
+    "Spinning up live queues…": "लाइव कतारें शुरू हो रही हैं…",
+    "Almost there…": "बस थोड़ा और…",
+    "Thanks for your patience…": "आपके धैर्य के लिए धन्यवाद…",
+    "The free server is waking up — this can take up to a minute.":
+      "मुफ़्त सर्वर जाग रहा है — इसमें एक मिनट तक लग सकता है।",
     "Copied ✓": "कॉपी हो गया ✓",
     "Loading nearby places…": "आस-पास की जगहें लोड हो रही हैं…",
     "Couldn't load nearby places — registered clinics still shown.":
@@ -351,6 +358,13 @@ const DICT = {
     "Locating…": "கண்டறிகிறது…",
     "Your patient code": "உங்கள் நோயாளர் குறியீடு",
     "Copy code": "குறியீட்டை நகலெடு",
+    "Connecting to MediQueue…": "MediQueue உடன் இணைக்கிறது…",
+    "Waking up the server…": "சர்வர் விழித்தெழுகிறது…",
+    "Spinning up live queues…": "நேரடி வரிசைகள் தயாராகின்றன…",
+    "Almost there…": "கிட்டத்தட்ட முடிந்தது…",
+    "Thanks for your patience…": "உங்கள் பொறுமைக்கு நன்றி…",
+    "The free server is waking up — this can take up to a minute.":
+      "இலவச சர்வர் விழித்தெழுகிறது — இதற்கு ஒரு நிமிடம் வரை ஆகலாம்.",
     "Copied ✓": "நகலெடுக்கப்பட்டது ✓",
     "Loading nearby places…": "அருகிலுள்ள இடங்கள் ஏற்றப்படுகின்றன…",
     "Couldn't load nearby places — registered clinics still shown.":
