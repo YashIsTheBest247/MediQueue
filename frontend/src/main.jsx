@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import {
   BrowserRouter,
@@ -41,6 +41,11 @@ const pageTransition = { duration: 0.18, ease: "easeOut" };
 function AnimatedRoutes() {
   const location = useLocation();
   const { lang } = useT();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [location.pathname]);
+
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div

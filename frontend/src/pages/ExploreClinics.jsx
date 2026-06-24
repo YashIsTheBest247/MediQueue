@@ -63,7 +63,14 @@ export default function ExploreClinics() {
           {sorted.map((c, i) => (
             <div key={c.id} className="explore-card card">
               <div className="ex-head">
-                <div className="ex-name">{c.name}</div>
+                <div className="ex-namewrap">
+                  <div className="ex-name">{c.name}</div>
+                  <div className="ex-spec">
+                    {c.departments?.length > 0
+                      ? c.departments.join(" · ")
+                      : t("General")}
+                  </div>
+                </div>
                 {i === 0 && c.is_open && (
                   <span className="ex-badge">{t("Shortest wait")}</span>
                 )}
@@ -94,9 +101,6 @@ export default function ExploreClinics() {
                   </span>
                 )}
                 {c.hours && <span>{c.hours}</span>}
-                {c.departments?.length > 0 && (
-                  <span>{c.departments.join(" · ")}</span>
-                )}
               </div>
 
               <button

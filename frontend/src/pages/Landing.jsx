@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Footer, navMotion } from "../components/Chrome.jsx";
+import { Footer, navMotion, ThemeToggle } from "../components/Chrome.jsx";
 import BrandMark from "../components/BrandMark.jsx";
 import { useT, LanguageSwitcher } from "../i18n.jsx";
 
@@ -111,6 +111,7 @@ export default function Landing() {
           <Link to="/explore">{t("Live Queues")}</Link>
         </nav>
         <div className="ln-cta">
+          <ThemeToggle />
           <LanguageSwitcher />
           <button
             className="btn btn-ghost"

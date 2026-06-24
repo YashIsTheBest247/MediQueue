@@ -176,6 +176,7 @@ const DICT = {
     "Est. wait for last token (min)": "अंतिम टोकन के लिए अनुमानित प्रतीक्षा (मि.)",
     "Up Next": "आगे",
     "The queue is empty right now.": "अभी कतार खाली है।",
+    General: "सामान्य",
   },
   ta: {
     "Log in": "உள்நுழை",
@@ -346,6 +347,7 @@ const DICT = {
     "Est. wait for last token (min)": "கடைசி டோக்கனுக்கு மதிப்பிட்ட காத்திருப்பு (நி)",
     "Up Next": "அடுத்து",
     "The queue is empty right now.": "இப்போது வரிசை காலியாக உள்ளது.",
+    General: "பொது",
   },
 };
 
