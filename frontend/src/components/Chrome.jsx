@@ -172,7 +172,7 @@ export function Footer() {
           </div>
 
           <div className="footer-connect">
-            <div className="fc-head">Connect with the developer</div>
+            <div className="fc-head">Connect with Developer</div>
             <div className="fc-dev">Built by Yash Munshi</div>
             <div className="socials">
               {SOCIALS.map((s) => (

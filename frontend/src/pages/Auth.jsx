@@ -119,6 +119,32 @@ export default function Auth() {
           </div>
         </Link>
 
+        <div className="demo-box top">
+          <div className="demo-head">
+            {t("New here? Explore instantly — no sign-up needed")}
+          </div>
+          <div className="demo-btns">
+            <button
+              className="btn btn-primary"
+              disabled={busy}
+              onClick={() => tryDemo("clinic")}
+            >
+              {t("Try Demo Clinic")}
+            </button>
+            <button
+              className="btn btn-indigo"
+              disabled={busy}
+              onClick={() => tryDemo("patient")}
+            >
+              {t("Try Demo Patient")}
+            </button>
+          </div>
+        </div>
+
+        <div className="auth-divider">
+          <span>{t("or sign in")}</span>
+        </div>
+
         <div className="auth-tabs">
           <button
             className={mode === "login" ? "on" : ""}
@@ -228,26 +254,6 @@ export default function Auth() {
         {(mode === "login" || role === "patient") && (
           <GoogleButton autoPrompt onCredential={handleGoogle} />
         )}
-
-        <div className="demo-box">
-          <div className="demo-head">{t("Just exploring? Try a demo account")}</div>
-          <div className="demo-btns">
-            <button
-              className="btn btn-ghost"
-              disabled={busy}
-              onClick={() => tryDemo("clinic")}
-            >
-              {t("Demo Clinic")}
-            </button>
-            <button
-              className="btn btn-ghost"
-              disabled={busy}
-              onClick={() => tryDemo("patient")}
-            >
-              {t("Demo Patient")}
-            </button>
-          </div>
-        </div>
 
         <div className="auth-foot">
           {mode === "login" ? (

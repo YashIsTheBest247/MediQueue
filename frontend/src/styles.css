@@ -1370,6 +1370,7 @@ button.pill.ghost:active {
 .ln-cta {
   margin-left: auto;
   display: flex;
+  align-items: center;
   gap: 10px;
 }
 .ln-cta .btn {
@@ -1765,7 +1766,8 @@ button.pill.ghost:active {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 12px;
+  height: 36px;
+  padding: 0 14px;
   border-radius: 999px;
   background: #fff;
   border: 1px solid var(--line);
@@ -3139,15 +3141,20 @@ button.pill.ghost:active {
 }
 
 .demo-box {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
   text-align: center;
 }
+.demo-box.top {
+  margin: 16px 0 4px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--sky-line);
+  background: linear-gradient(160deg, #effafb, #e6f4f6);
+}
 .demo-head {
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  margin-bottom: 12px;
 }
 .demo-btns {
   display: flex;
@@ -3157,6 +3164,13 @@ button.pill.ghost:active {
   flex: 1;
   padding: 11px;
   font-size: 14px;
+}
+[data-theme="dark"] .demo-box.top {
+  background: #14262a;
+  border-color: #1e3a40;
+}
+[data-theme="dark"] .demo-head {
+  color: #82d6df;
 }
 
 [data-theme="dark"] .map-search input,
