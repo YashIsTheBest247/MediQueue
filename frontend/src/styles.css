@@ -216,13 +216,18 @@ button {
 }
 
 .nav-mobile {
+  overflow: hidden;
+}
+.nav-mobile.open-done {
+  overflow: visible;
+}
+.nav-mobile-inner {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 12px 14px;
+  padding: 10px 12px 14px;
   border-top: 1px solid var(--line);
   margin-top: 4px;
-  animation: pop 0.18s ease both;
 }
 .nav-mobile-link {
   padding: 12px 12px;
@@ -1608,6 +1613,57 @@ button.pill.ghost:active {
   min-height: 44px;
 }
 
+.google-cbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #1f2937;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.google-cbtn:hover:not(:disabled) {
+  background: #f6faff;
+  border-color: #c9d6e5;
+}
+.google-cbtn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+.google-cbtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.google-cbtn .g-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.google-msg {
+  margin-top: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #b4541f;
+  text-align: center;
+}
+[data-theme="dark"] .google-cbtn {
+  background: #16181c;
+  border-color: var(--line);
+  color: var(--ink);
+}
+[data-theme="dark"] .google-cbtn:hover:not(:disabled) {
+  background: #1a1d22;
+}
+[data-theme="dark"] .google-msg {
+  color: #f0a868;
+}
+
 .role-modal {
   position: fixed;
   inset: 0;
@@ -2731,6 +2787,30 @@ button.pill.ghost:active {
     margin: 12px 12px 0;
     border-radius: 18px;
   }
+  .panel {
+    padding: 26px 16px;
+    border-radius: 24px;
+  }
+  .laptop {
+    width: 100%;
+    max-width: 340px;
+  }
+  .laptop-screen {
+    height: 232px;
+  }
+  .laptop-base {
+    margin: 0 -10px;
+  }
+  .phone {
+    width: 210px;
+    height: 430px;
+  }
+  .lt-side {
+    padding: 12px 8px;
+  }
+  .lt-nav {
+    font-size: 11px;
+  }
   .nav-actions {
     width: 100%;
     justify-content: flex-start;
@@ -2946,7 +3026,7 @@ button.pill.ghost:active {
 [data-theme="dark"] .nav-burger span {
   background: #82d6df;
 }
-[data-theme="dark"] .nav-mobile {
+[data-theme="dark"] .nav-mobile-inner {
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 [data-theme="dark"] .nav-mobile-link {

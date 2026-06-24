@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import BrandMark from "./BrandMark.jsx";
 import { LanguageSwitcher, useT } from "../i18n.jsx";
 
@@ -77,6 +77,10 @@ export function NavBurger({ open, onClick }) {
 export function TopBar({ connected, right, links, back }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!open) setExpanded(false);
+  }, [open]);
   return (
     <motion.header className="navbar" {...navMotion}>
       <div className="topbar">
@@ -114,30 +118,41 @@ export function TopBar({ connected, right, links, back }) {
         <NavBurger open={open} onClick={() => setOpen((o) => !o)} />
       </div>
 
-      {open && (
-        <div className="nav-mobile">
-          {links &&
-            links.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className="nav-mobile-link"
-                onClick={() => setOpen(false)}
-              >
-                {l.label}
-              </Link>
-            ))}
-          <div className="nav-mobile-tools">
-            <ThemeToggle />
-            <LanguageSwitcher />
-          </div>
-          {right && (
-            <div className="nav-mobile-cta" onClick={() => setOpen(false)}>
-              {right}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            className={"nav-mobile" + (expanded ? " open-done" : "")}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            onAnimationComplete={() => open && setExpanded(true)}
+          >
+            <div className="nav-mobile-inner">
+              {links &&
+                links.map((l) => (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    className="nav-mobile-link"
+                    onClick={() => setOpen(false)}
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              <div className="nav-mobile-tools">
+                <ThemeToggle />
+                <LanguageSwitcher />
+              </div>
+              {right && (
+                <div className="nav-mobile-cta" onClick={() => setOpen(false)}>
+                  {right}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.header>
   );
 }

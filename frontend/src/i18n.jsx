@@ -150,6 +150,10 @@ const DICT = {
     "Call from: Any": "बुलाएँ: कोई भी",
     "min left": "मिनट बाकी",
     "wrapping up": "समाप्ति पर",
+    or: "या",
+    "Continue with Google": "Google से जारी रखें",
+    "Google sign-in is blocked. Enable third-party sign-in / pop-ups for this site, then try again.":
+      "Google साइन-इन अवरुद्ध है। इस साइट के लिए थर्ड-पार्टी साइन-इन / पॉप-अप चालू करें, फिर पुनः प्रयास करें।",
     Skip: "छोड़ें",
     Recall: "वापस बुलाएँ",
     Call: "बुलाएँ",
@@ -326,6 +330,10 @@ const DICT = {
     "Call from: Any": "அழை: எதுவும்",
     "min left": "நிமிடம் மீதம்",
     "wrapping up": "முடியும் தருணம்",
+    or: "அல்லது",
+    "Continue with Google": "Google மூலம் தொடரவும்",
+    "Google sign-in is blocked. Enable third-party sign-in / pop-ups for this site, then try again.":
+      "Google உள்நுழைவு தடுக்கப்பட்டுள்ளது. இந்தத் தளத்திற்கு மூன்றாம் தரப்பு உள்நுழைவு / பாப்-அப்களை இயக்கி, மீண்டும் முயற்சிக்கவும்.",
     Skip: "தவிர்",
     Recall: "மீண்டும் அழை",
     Call: "அழை",

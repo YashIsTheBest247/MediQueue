@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Footer, navMotion, ThemeToggle, NavBurger } from "../components/Chrome.jsx";
 import BrandMark from "../components/BrandMark.jsx";
 import { useT, LanguageSwitcher } from "../i18n.jsx";
@@ -87,6 +87,10 @@ export default function Landing() {
   const navigate = useNavigate();
   const { t } = useT();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuExpanded, setMenuExpanded] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) setMenuExpanded(false);
+  }, [menuOpen]);
 
   return (
     <div className="page landing">
@@ -134,51 +138,62 @@ export default function Landing() {
         <NavBurger open={menuOpen} onClick={() => setMenuOpen((o) => !o)} />
         </div>
 
-        {menuOpen && (
-          <div className="nav-mobile">
-            {NAV.map((n) => (
-              <a
-                key={n.href}
-                href={n.href}
-                className="nav-mobile-link"
-                onClick={() => setMenuOpen(false)}
-              >
-                {t(n.label)}
-              </a>
-            ))}
-            <Link
-              to="/explore"
-              className="nav-mobile-link"
-              onClick={() => setMenuOpen(false)}
+        <AnimatePresence initial={false}>
+          {menuOpen && (
+            <motion.div
+              className={"nav-mobile" + (menuExpanded ? " open-done" : "")}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+              onAnimationComplete={() => menuOpen && setMenuExpanded(true)}
             >
-              {t("Live Queues")}
-            </Link>
-            <div className="nav-mobile-tools">
-              <ThemeToggle />
-              <LanguageSwitcher />
-            </div>
-            <div className="nav-mobile-cta">
-              <button
-                className="btn btn-ghost"
-                onClick={() => {
-                  setMenuOpen(false);
-                  navigate("/auth?mode=login");
-                }}
-              >
-                {t("Log in")}
-              </button>
-              <button
-                className="btn btn-indigo"
-                onClick={() => {
-                  setMenuOpen(false);
-                  navigate("/auth?mode=signup");
-                }}
-              >
-                {t("Get started")}
-              </button>
-            </div>
-          </div>
-        )}
+              <div className="nav-mobile-inner">
+                {NAV.map((n) => (
+                  <a
+                    key={n.href}
+                    href={n.href}
+                    className="nav-mobile-link"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {t(n.label)}
+                  </a>
+                ))}
+                <Link
+                  to="/explore"
+                  className="nav-mobile-link"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {t("Live Queues")}
+                </Link>
+                <div className="nav-mobile-tools">
+                  <ThemeToggle />
+                  <LanguageSwitcher />
+                </div>
+                <div className="nav-mobile-cta">
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/auth?mode=login");
+                    }}
+                  >
+                    {t("Log in")}
+                  </button>
+                  <button
+                    className="btn btn-indigo"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate("/auth?mode=signup");
+                    }}
+                  >
+                    {t("Get started")}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.header>
 
       <div className="wrap">
