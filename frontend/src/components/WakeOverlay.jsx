@@ -42,7 +42,7 @@ export default function WakeOverlay() {
           {t(MESSAGES[i])}
         </div>
         <div className="wake-sub">
-          {t("The free server is waking up — this can take up to a minute.")}
+          {t("The server is waking up — this can take up to a minute.")}
         </div>
         <div className="wake-bar">
           <span />

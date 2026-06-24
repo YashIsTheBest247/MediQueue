@@ -363,7 +363,7 @@ const DICT = {
     "Spinning up live queues…": "நேரடி வரிசைகள் தயாராகின்றன…",
     "Almost there…": "கிட்டத்தட்ட முடிந்தது…",
     "Thanks for your patience…": "உங்கள் பொறுமைக்கு நன்றி…",
-    "The free server is waking up — this can take up to a minute.":
+    "The server is waking up — this can take up to a minute.":
       "இலவச சர்வர் விழித்தெழுகிறது — இதற்கு ஒரு நிமிடம் வரை ஆகலாம்.",
     "Copied ✓": "நகலெடுக்கப்பட்டது ✓",
     "Loading nearby places…": "அருகிலுள்ள இடங்கள் ஏற்றப்படுகின்றன…",
