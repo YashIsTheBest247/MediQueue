@@ -62,11 +62,7 @@ export default function ClinicDashboard() {
         connected={connected}
         right={
           <>
-            <Link
-              to={`/display/${account.id}`}
-              className="pill ghost"
-              target="_blank"
-            >
+            <Link to={`/display/${account.id}`} className="pill ghost">
               Open display
             </Link>
             <button className="pill ghost" onClick={reset}>

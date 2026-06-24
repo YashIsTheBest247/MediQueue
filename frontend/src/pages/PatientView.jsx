@@ -147,7 +147,6 @@ export default function PatientView() {
               : `Now serving token ${state?.current_token ?? "—"}`}
           </div>
           <div className="pulse">
-            <i />
             {connected ? "Live · updates automatically" : "Reconnecting…"}
           </div>
         </div>

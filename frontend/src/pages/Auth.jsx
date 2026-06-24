@@ -41,7 +41,7 @@ export default function Auth() {
     <div className="page auth-page">
       <div className="auth-card card">
         <div className="auth-top">
-          <BackButton to="/" />
+          <BackButton />
         </div>
         <Link to="/" className="brand auth-brand">
           <div className="logo">M</div>

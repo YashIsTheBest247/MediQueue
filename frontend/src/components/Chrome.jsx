@@ -9,12 +9,13 @@ export const navMotion = {
 
 export function BackButton({ to }) {
   const navigate = useNavigate();
+  function goBack() {
+    if (to) navigate(to);
+    else if (window.history.length > 1) navigate(-1);
+    else navigate("/");
+  }
   return (
-    <button
-      className="back-btn"
-      onClick={() => (to ? navigate(to) : navigate(-1))}
-      aria-label="Go back"
-    >
+    <button className="back-btn" onClick={goBack} aria-label="Go back">
       Back
     </button>
   );
@@ -47,15 +48,7 @@ export function TopBar({ connected, right, links, back }) {
           </nav>
         )}
 
-        <div className="nav-actions">
-          {right}
-          {connected !== undefined && (
-            <span className="pill ghost">
-              <span className={"dot" + (connected ? " on" : "")} />
-              {connected ? "Live" : "Reconnecting"}
-            </span>
-          )}
-        </div>
+        <div className="nav-actions">{right}</div>
       </div>
     </motion.header>
   );

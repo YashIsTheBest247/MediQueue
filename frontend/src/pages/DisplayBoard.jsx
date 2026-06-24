@@ -13,7 +13,7 @@ export default function DisplayBoard() {
 
   return (
     <div className="page">
-      <TopBar connected={connected} back="/" />
+      <TopBar back />
 
       <div className="wrap">
         <div className="section-title" style={{ textAlign: "center" }}>
@@ -30,7 +30,6 @@ export default function DisplayBoard() {
             {serving ? serving.name : "Waiting to start"}
           </div>
           <div className="pulse">
-            <i />
             {connected ? "Live · updates automatically" : "Reconnecting…"}
           </div>
         </div>
